@@ -96,11 +96,11 @@ rule: 'Match Init'
     SetMatchTime(0);
     Wait(5);
     SetMatchTime(0);
+
+    CreateDummyBot(Hero.Soldier76, Team.Team1, 0, PlayersInSlot(1));
 }
 
 rule: 'AI Init'
 Player.Slot0
 {
 }
-
-
