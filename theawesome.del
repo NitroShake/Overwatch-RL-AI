@@ -1,0 +1,8 @@
+globalvar define w1;
+globalvar define w2;
+globalvar define inputs;
+
+void feedForward() 'Feed Forward'
+{
+    LogToInspector("heeeey (testing)");
+}
