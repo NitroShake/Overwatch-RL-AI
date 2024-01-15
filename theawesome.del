@@ -1,8 +1,91 @@
-globalvar define w1;
-globalvar define w2;
-globalvar define inputs;
+playervar define w1;
+playervar define layer1;
+playervar define w2;
+playervar define output;
+globalvar define e = 718281828459045;
 
-void feedForward() 'Feed Forward'
+void feedForward(define inputs)
 {
-    LogToInspector("heeeey (testing)");
+    LogToInspector("Feeding forward...");
+
+    //forward all inputs to hidden layer
+    for (define i = 0; i < CountOf(layer1); i++) {
+        for (define j = 0; j < CountOf(inputs); j++) {
+            layer1[i] += inputs[j] * w1[j][i];
+        }
+    }
+
+    //activation function on hidden layer
+    for (define i = 0; i < CountOf(layer1); i++) {
+        layer1[i] = tanh(layer1[i]);
+    } 
+
+    //forward hidden layer to output node
+    for (define i = 0; i < CountOf(layer1); i++) {
+        output += layer1[i] * w2[i];
+    }
 }
+
+//feedforward optimised for multiple FFs. calculates the non-activated values for the first hidden layer once,
+//then reuses them for each FF, adding on inputs from extraInputs[i] each time.
+//this reduces the multiplications needed for subsequent FFs, saving server resources
+void optimisedFeedForward(define inputs, define weights, define extraInputs, define extraWeights) {
+    for (define i = 0; i < CountOf(layer1); i++) {
+        for (define j = 0; j < CountOf(inputs); j++) {
+            layer1[i] += inputs[j] * w1[j][i];
+        }
+    }
+
+    define outputs = [];
+
+    for (define i = 0; i < CountOf(extraInputs); i++) {
+        define hiddenLayer = layer1;
+        
+        for (define j = 0; j < CountOf(hiddenLayer); j++) {
+            for (define k = 0; k < CountOf(extraInputs[i]); k++) {
+                hiddenLayer[j] += extraInputs[i][k] * extraWeights[i][k][j];
+            }
+        }
+
+        for (define j = 0; j < CountOf(layer1); j++) {
+            hiddenLayer[j] = tanh(hiddenLayer[j]);
+        } 
+
+        //forward hidden layer to output node
+        for (define j = 0; j < CountOf(hiddenLayer); j++) {
+            output += hiddenLayer[j] * w2[j];
+        }
+
+        outputs = outputs.Append(output);
+    }
+}
+
+Number tanh(define x) 
+{
+    return 2;
+}
+
+void backPropagate() 'Back-propagation'
+{
+    LogToInspector("Back-propagating...");
+
+}
+
+rule: 'Match Init'
+{
+    SetSlowMotion(0.33);
+    DisableInspectorRecording(); //this is absolutely crucial. Game crashes upon trying to view inspector tab otherwise.
+    
+    //skip through game's setup phases. They're unneccesary with AI
+    Wait(5);
+    SetMatchTime(0);
+    Wait(5);
+    SetMatchTime(0);
+}
+
+rule: 'AI Init'
+Player.Slot0
+{
+}
+
+
