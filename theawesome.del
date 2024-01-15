@@ -3,6 +3,7 @@ playervar define layer1;
 playervar define w2;
 playervar define output;
 globalvar define e = 718281828459045;
+globalvar define learningRate = 0.01;
 
 void feedForward(define inputs)
 {
@@ -62,13 +63,27 @@ void optimisedFeedForward(define inputs, define weights, define extraInputs, def
 
 Number tanh(define x) 
 {
-    return 2;
+    return (2/(1-(e^(2*x)))) - 1;
 }
 
-void backPropagate() 'Back-propagation'
+Number tanhDerivative(define x) {
+    return 1 - ((tanh(x))^2);
+}
+
+void backPropagate(define inputs, define hiddenlayer, define loss) 'Back-propagation'
 {
     LogToInspector("Back-propagating...");
+    define hlLosses = [];
+    for (define i = 0; i < CountOf(w2); i++) {
+        hlLosses = Append(w2[i] * loss * tanhDerivative(hiddenlayer[i]));
+        w2[i] = w2[i] - (learningRate * hiddenlayer[i] * loss);
+    }
 
+    for (define i = 0; i < CountOf(hlLosses); i++) {
+        for (define j = 0; j < CountOf(inputs); j++) {
+            w1[j][i] = w1[j][i] - (learningRate * inputs[j][i] * hlLosses[i]);
+        }
+    }
 }
 
 rule: 'Match Init'
