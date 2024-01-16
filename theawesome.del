@@ -36,6 +36,7 @@ class NeuralNetwork {
     //feedforward optimised for multiple FFs. calculates the non-activated values for the first hidden layer once,
     //then reuses them for each FF, adding on inputs from extraInputs[i] each time.
     //this reduces the multiplications needed for subsequent FFs, saving server resources
+    //TODO:: Remove extraWeights. They're part of the original array anyway, you can do this ^_^
     define optimisedFeedForward(define inputs, define extraInputs, define extraWeights) {
         define layer1 = [];
         define output = 0;
