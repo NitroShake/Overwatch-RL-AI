@@ -1,106 +1,125 @@
-playervar define w1;
-playervar define layer1;
-playervar define w2;
-playervar define output;
 globalvar define e = 718281828459045;
-globalvar define learningRate = 0.01;
 
-void feedForward(define inputs)
-{
-    LogToInspector("Feeding forward...");
 
-    //forward all inputs to hidden layer
-    for (define i = 0; i < CountOf(layer1); i++) {
-        for (define j = 0; j < CountOf(inputs); j++) {
-            layer1[i] += inputs[j] * w1[j][i];
-        }
-    }
+class NeuralNetwork {
+    define learningRate = 0.01;
+    define w1;
+    define w2;   
+    define lastLayer1;
+    define lastOutput;
 
-    //activation function on hidden layer
-    for (define i = 0; i < CountOf(layer1); i++) {
-        layer1[i] = tanh(layer1[i]);
-    } 
-
-    //forward hidden layer to output node
-    for (define i = 0; i < CountOf(layer1); i++) {
-        output += layer1[i] * w2[i];
-    }
-}
-
-//feedforward optimised for multiple FFs. calculates the non-activated values for the first hidden layer once,
-//then reuses them for each FF, adding on inputs from extraInputs[i] each time.
-//this reduces the multiplications needed for subsequent FFs, saving server resources
-void optimisedFeedForward(define inputs, define weights, define extraInputs, define extraWeights) {
-    for (define i = 0; i < CountOf(layer1); i++) {
-        for (define j = 0; j < CountOf(inputs); j++) {
-            layer1[i] += inputs[j] * w1[j][i];
-        }
-    }
-
-    define outputs = [];
-
-    for (define i = 0; i < CountOf(extraInputs); i++) {
-        define hiddenLayer = layer1;
-        
-        for (define j = 0; j < CountOf(hiddenLayer); j++) {
-            for (define k = 0; k < CountOf(extraInputs[i]); k++) {
-                hiddenLayer[j] += extraInputs[i][k] * extraWeights[i][k][j];
+    Number feedForward(define inputs)
+    {
+        LogToInspector("Feeding forward...");
+        define output = 0;
+        define layer1 = [];
+        //forward all inputs to hidden layer
+        for (define i = 0; i < CountOf(layer1); i++) {
+            for (define j = 0; j < CountOf(inputs); j++) {
+                layer1[i] += inputs[j] * w1[j][i];
             }
         }
 
-        for (define j = 0; j < CountOf(layer1); j++) {
-            hiddenLayer[j] = tanh(hiddenLayer[j]);
+        //activation function on hidden layer
+        for (define i = 0; i < CountOf(layer1); i++) {
+            layer1[i] = tanh(layer1[i]);
         } 
 
         //forward hidden layer to output node
-        for (define j = 0; j < CountOf(hiddenLayer); j++) {
-            output += hiddenLayer[j] * w2[j];
+        for (define i = 0; i < CountOf(layer1); i++) {
+            output += layer1[i] * w2[i];
         }
 
-        outputs = outputs.Append(output);
-    }
-}
-
-Number tanh(define x) 
-{
-    return (2/(1-(e^(2*x)))) - 1;
-}
-
-Number tanhDerivative(define x) {
-    return 1 - ((tanh(x))^2);
-}
-
-void backPropagate(define inputs, define hiddenlayer, define loss) 'Back-propagation'
-{
-    LogToInspector("Back-propagating...");
-    define hlLosses = [];
-    for (define i = 0; i < CountOf(w2); i++) {
-        hlLosses = Append(w2[i] * loss * tanhDerivative(hiddenlayer[i]));
-        w2[i] = w2[i] - (learningRate * hiddenlayer[i] * loss);
+        return output;
     }
 
-    for (define i = 0; i < CountOf(hlLosses); i++) {
-        for (define j = 0; j < CountOf(inputs); j++) {
-            w1[j][i] = w1[j][i] - (learningRate * inputs[j][i] * hlLosses[i]);
+    //feedforward optimised for multiple FFs. calculates the non-activated values for the first hidden layer once,
+    //then reuses them for each FF, adding on inputs from extraInputs[i] each time.
+    //this reduces the multiplications needed for subsequent FFs, saving server resources
+    define optimisedFeedForward(define inputs, define extraInputs, define extraWeights) {
+        define layer1 = [];
+        define output = 0;
+
+        for (define i = 0; i < CountOf(layer1); i++) {
+            for (define j = 0; j < CountOf(inputs); j++) {
+                layer1[i] += inputs[j] * w1[j][i];
+            }
+        }
+
+        define outputs = [];
+
+        for (define i = 0; i < CountOf(extraInputs); i++) {
+            define hiddenLayer = layer1;
+            
+            for (define j = 0; j < CountOf(hiddenLayer); j++) {
+                for (define k = 0; k < CountOf(extraInputs[i]); k++) {
+                    hiddenLayer[j] += extraInputs[i][k] * extraWeights[i][k][j];
+                }
+            }
+
+            for (define j = 0; j < CountOf(layer1); j++) {
+                hiddenLayer[j] = tanh(hiddenLayer[j]);
+            } 
+
+            //forward hidden layer to output node
+            for (define j = 0; j < CountOf(hiddenLayer); j++) {
+                output += hiddenLayer[j] * w2[j];
+            }
+
+            outputs = outputs.Append(output);
+        }
+
+        return outputs;
+    }
+
+    Number tanh(define x) 
+    {
+        return (2/(1-(e^(2*x)))) - 1;
+    }
+
+    Number tanhDerivative(define x) {
+        return 1 - ((tanh(x))^2);
+    }
+
+    void backPropagate(define inputs, define hiddenlayer, define actualValue) 'Back-propagation'
+    {
+        define loss = feedForward(inputs) - actualValue;
+        LogToInspector("Back-propagating...");
+        define hlLosses = [];
+        for (define i = 0; i < CountOf(w2); i++) {
+            hlLosses = Append(w2[i] * loss * tanhDerivative(hiddenlayer[i]));
+            w2[i] = w2[i] - (learningRate * hiddenlayer[i] * loss);
+        }
+
+        for (define i = 0; i < CountOf(hlLosses); i++) {
+            for (define j = 0; j < CountOf(inputs); j++) {
+                w1[j][i] = w1[j][i] - (learningRate * inputs[j][i] * hlLosses[i]);
+            }
         }
     }
 }
 
 rule: 'Match Init'
 {
+    //these two are crucial for performance - server crashes at regular speed, and
+    //client crashes if inspector recording is enabled (too many step-throughs)
     SetSlowMotion(0.33);
-    DisableInspectorRecording(); //this is absolutely crucial. Game crashes upon trying to view inspector tab otherwise.
+    DisableInspectorRecording();
     
-    //skip through game's setup phases. They're unneccesary with AI
+    //skip through game's setup phases. They're unneccesary with AI. Wait times for extra stability
     Wait(5);
     SetMatchTime(0);
     Wait(5);
     SetMatchTime(0);
 
+    //spawn dummy next to slot 1 (teammate)
     CreateDummyBot(Hero.Soldier76, Team.Team1, 0, PlayersInSlot(1));
 }
-
+globalvar NeuralNetwork targetNetwork;
+globalvar NeuralNetwork passiveNetwork;
+globalvar NeuralNetwork ultimateNetwork;
 rule: 'AI Init'
 Player.Slot0
 {
+    targetNetwork.feedForward([2]);
 }
