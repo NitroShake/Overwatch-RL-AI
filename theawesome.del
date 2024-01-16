@@ -97,7 +97,7 @@ class NeuralNetwork {
 
     void backPropagate(define inputs, define actualValue) 'Back-propagation'
     {
-        define loss = actualValue - feedForward(inputs);
+        define loss = feedForward(inputs) - actualValue;
         LogToInspector("Back-propagating...");
         define hlLosses = [];
         for (define i = 0; i < CountOf(w2); i++) {
@@ -138,8 +138,8 @@ Player.Slot0
 {
     targetNetwork = new NeuralNetwork(0.1, [[0.3, 0.8], [0.6, -0.7], [-0.4, -0.5]], [-0.3, 0.2]);
     LogToInspector(targetNetwork.feedForward([0.36, -1, 0.4]));
-    targetNetwork.backPropagate([0.36, -1, 0.4], 5);
-    LogToInspector(targetNetwork.feedForward([0.36, -1, 0.4]));
+    targetNetwork.backPropagate([0.36, -1, 0.4], -5);
+        LogToInspector(targetNetwork.feedForward([0.36, -1, 0.4]));
 }
 
 rule: 'AI Loop'
