@@ -48,25 +48,28 @@ class NeuralNetwork {
     //feedforward optimised for multiple FFs. calculates the non-activated values for the first hidden layer once,
     //then reuses them for each FF, adding on inputs from extraInputs[i] each time.
     //this reduces the multiplications needed for subsequent FFs, saving server resources
-    //TODO:: Make extraWeights not required. They're part of the original array anyway, you can do this ^_^
-    define optimisedFeedForward(define inputs, define extraInputs, define extraWeights) {
+    define optimisedFeedForward(define inputs, define extraInputs) {
         define layer1 = [];
-        define output = 0;
+        define baseWeightI = 0;
 
         for (define i = 0; i < CountOf(w2); i++) {
             for (define j = 0; j < CountOf(inputs); j++) {
                 layer1[i] += inputs[j] * w1[j][i];
+                baseWeightI = j;
             }
         }
 
-        define outputs = [];
+        LogToInspector("i {0}".Format([baseWeightI]));
 
+        define outputs = [];
+        LogToInspector('the layers');
         for (define i = 0; i < CountOf(extraInputs); i++) {
+            define output = 0;
             define hiddenLayer = layer1;
-            
             for (define j = 0; j < CountOf(hiddenLayer); j++) {
                 for (define k = 0; k < CountOf(extraInputs[i]); k++) {
-                    hiddenLayer[j] += extraInputs[i][k] * extraWeights[i][k][j];
+                    hiddenLayer[j] += extraInputs[i][k] * w1[baseWeightI + 1 + k][j];
+                    LogToInspector('multiplying {0} by {1}'.Format([extraInputs[i][k], w1[baseWeightI + 1 + k][j]]));
                 }
             }
 
@@ -74,12 +77,16 @@ class NeuralNetwork {
                 hiddenLayer[j] = tanh(hiddenLayer[j]);
             } 
 
+            LogToInspector('hidden layer: {0} | {1}'.Format([hiddenLayer[0], hiddenLayer[1]]));
+
             //forward hidden layer to output node
             for (define j = 0; j < CountOf(hiddenLayer); j++) {
                 output += hiddenLayer[j] * w2[j];
+                LogToInspector('adding {0} * {1} to output'.Format([hiddenLayer[j], w2[j]]));
             }
 
             outputs = outputs.Append(output);
+            LogToInspector('----');
         }
 
         return outputs;
@@ -138,8 +145,15 @@ Player.Slot0
 {
     targetNetwork = new NeuralNetwork(0.1, [[0.3, 0.8], [0.6, -0.7], [-0.4, -0.5]], [-0.3, 0.2]);
     LogToInspector(targetNetwork.feedForward([0.36, -1, 0.4]));
+    LogToInspector(targetNetwork.optimisedFeedForward([0.36, -1], [[0.4]]));
+    define sus = targetNetwork.optimisedFeedForward([0.36], [[-1, 0.4], [0.8, -0.11], [-1, 0.4]]);
+    LogToInspector('the susses');
+    LogToInspector(sus[0]);
+    LogToInspector(sus[1]);
+    LogToInspector(sus[2]);
     targetNetwork.backPropagate([0.36, -1, 0.4], -5);
         LogToInspector(targetNetwork.feedForward([0.36, -1, 0.4]));
+    LogToInspector(targetNetwork.optimisedFeedForward([0.36, -1], [[0.4]]));
 }
 
 rule: 'AI Loop'
