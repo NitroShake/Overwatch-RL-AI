@@ -169,6 +169,19 @@ Number[] getInputs(define position) {
     return inputs;
 }
 
+//adds numbers to array such that all values become non-negative.
+//e.g. [-20, 40, -30, 60] becomes [10, 70, 0, 90]
+Number[] numsToAllPositiveNums(define array) {
+    define lowestNumber = 0;
+    for (define i = 0; i < CountOf(array); i++) {
+        lowestNumber = Min(lowestNumber, array[i]);
+    }
+    for (define i = 0; i < CountOf(array); i++) {
+        array[i] = array[i] - lowestNumber;
+    }
+    return array;
+}
+
 Number sumArray(define array) {
     define sum = 0;
     for (define i = 0; i < CountOf(array); i++) {
@@ -206,16 +219,22 @@ Player.Slot0
     }
 
     //get the index of the state-action to be chosen.
-    define sumValues = sumArray(choiceValues);
+    define positiveValues = numsToAllPositiveNums(choiceValues);
+    define sumValues = sumArray(positiveValues);
     define probability = 0;
     define rand = RandomReal(0, 1);
     define i = -1;
     while (probability < rand) {
         i++;
-        probability += choiceValues[i] / sumValues;
+        probability += positiveValues[i] / sumValues;
     }
 
     //todo: aim at target, move towards position, add inputs to the tracky thing (you know what i mean)
+
+
+    //end rule, run again next tick
+    Wait(0.016);
+    Loop();
 }
 
 rule: 'Reward damage'
