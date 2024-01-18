@@ -1,5 +1,10 @@
 globalvar define e = 2.718281828;
 playervar define reward = 0;
+globalvar define choiceMaxSteps = 3;
+globalvar define choiceStepSize = 6;
+
+playervar define targetPos;
+playervar define aimTarget;
 
 class NeuralNetwork {
     define learningRate = 0.01;
@@ -152,15 +157,65 @@ Player.Slot0
     LogToInspector(sus[1]);
     LogToInspector(sus[2]);
     targetNetwork.backPropagate([0.36, -1, 0.4], -5);
-        LogToInspector(targetNetwork.feedForward([0.36, -1, 0.4]));
+    LogToInspector(targetNetwork.feedForward([0.36, -1, 0.4]));
     LogToInspector(targetNetwork.optimisedFeedForward([0.36, -1], [[0.4]]));
+}
+
+//TODO: make this function do literally anything, returning an array [inputs, [extraInputs1, extraInputs2, etc.], targets]
+Number[] getInputs(define position) {
+    define enemiesInRadius = PlayersWithinRadius(position, 50, Team.All, RadiusLOS.SurfacesAndAllBarriers);
+    define inputs = [];
+    define extraInputs = [];
+    return inputs;
+}
+
+Number sumArray(define array) {
+    define sum = 0;
+    for (define i = 0; i < CountOf(array); i++) {
+        sum += array[i];
+    }
+    return sum;
 }
 
 rule: 'AI Loop'
 Event.OngoingPlayer
 Player.Slot0
 {
-    
+    define choicePositions = [];
+    define choiceTargets = [];
+    define choiceInputs = [];
+    define choiceValues = [];
+
+    //get the values of every possible state/action
+    for (define i = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
+        for (define j = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
+            define position = NearestWalkablePosition(WorldVectorOf(Vector(0,0,0), EventPlayer(), LocalVector.RotationAndTranslation) + 
+                                                      Vector(choiceMaxSteps * choiceStepSize, 0, choiceMaxSteps * choiceStepSize));
+            define input = getInputs(position);
+            for (define k = 0; k < CountOf(input[1]); i++) {
+                choicePositions = Append(choicePositions, position);
+                choiceInputs = Append(choiceInputs, Append(input[0], input[1][k]));
+            }
+            choiceTargets = Append(choiceTargets, [input[2]]);
+            define extraInputs = input[1];
+            input = input[0];
+            define values = targetNetwork.optimisedFeedForward(input, extraInputs);
+            choiceValues = Append(choiceValues, [values]);
+            Wait(0.016);
+        }
+    }
+
+    //get the index of the state-action to be chosen.
+    define sumValues = sumArray(choiceValues);
+    define probability = 0;
+    define rand = RandomReal(0, 1);
+    define i = -1;
+    while (probability < rand) {
+        i++;
+        probability += choiceValues[i] / sumValues;
+    }
+
+    //todo: aim at target, move towards position, add inputs to the tracky thing (you know what i mean)
 }
 
 rule: 'Reward damage'
