@@ -1,3 +1,5 @@
+//Credit goes to Deltin, code available from https://workshop.codes/hp2dg (requires the game to retrieve)
+
 globalvar define pfLoadedMap_nodes;
 globalvar define pfLoadedMap_neighbors;
 globalvar define pfIterationsThisTick;
