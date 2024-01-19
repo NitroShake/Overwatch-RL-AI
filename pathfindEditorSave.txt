@@ -1,0 +1,213 @@
+variables
+{
+	global:
+		0: __loadPersist
+		1: _objectVariable_0
+		2: _objectVariable_1
+		3: _objectVariable_2
+		4: _objectVariable_3
+		5: _objectVariable_4
+		11: lambdaParameter_0
+		14: version
+		15: map
+		16: _extendedGlobalCollection
+		17: Nodes_Node_UniqueID
+		18: Nodes_Node_Position
+		19: Nodes_Selected
+		20: Segments_ID
+		21: Segments_Node1
+		22: Segments_Node2
+		23: Attributes_Value
+		24: Attributes_ID
+		25: Attributes_Node1
+		26: Attributes_Node2
+		27: NodeUniqueID
+		28: SegmentUniqueID
+		29: AttributeUniqueID
+		30: SelectedNodeIndex
+		31: SelectedNodeID
+		32: SelectedSegment
+		34: AttributeTexts
+		35: savedPlayerLocation
+		36: savedPlayerDirection
+		38: controlTexts
+		39: controlTextOrder
+		40: connectingFromNode
+		41: waitlessI
+		42: IsNoclipping
+		43: dijkstraProgressReport
+		44: Rules_Actions_Data
+		45: Rules_ExecutesOnAttribute
+		46: Rules_EnabledHeroes
+		47: pagerButtons
+		49: pathfinderAttributes
+		51: buildToggles
+		52: x
+		53: previouslySelectedNodeID
+		54: attributeIndices
+		59: input
+		60: returnValue___createButtonSubrou
+		61: newState
+		62: buttonID
+		63: removeButtonIndex
+		64: _classIndexes
+		70: func_group
+		71: destroy_0
+		72: result
+		73: stringBuilder
+		75: lines_Type
+		76: lines_Content
+		77: i_1
+		78: index
+		79: index_0
+}
+
+actions
+{
+	Global.__loadPersist = True;
+	Global._objectVariable_0 = Array(0, 0, 0, 0);
+	Global._objectVariable_1 = Array(0, 0, 219, 0);
+	Global._objectVariable_2 = Array(0, 0, 221, 0);
+	Global._objectVariable_3 = Array(0, 0, 220, 0);
+	Global._objectVariable_4 = Array(0, 0, Array(7, 0), 0);
+	Global.lambdaParameter_0 = Array(0);
+	Global.version = 4;
+	Global.map = Map(Busan);
+	Global._extendedGlobalCollection = Array(20, 204, 205, 0, 0, 0, 0, Null, Null, 0, Null, 73, 0, Hero(Zenyatta), False, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 28, 29, 221, 5, 2.500, True, False, True, Array(Custom String("exit menu"), 2.350, 1.100, 0.350),
+		0, 0, 0, 0, 40, 77, 0, Array(), 0, 10, 11, 2, 25, 26, 27, 0, 0, 0, 0, 0, True, 0, 0, 0, 0, 0, 0, 0, Array(), 0, 0, Array(),
+		Array());
+	Global.Nodes_Node_UniqueID = Array(2, 3, 4, 5, 6, 9, 10, 11, 12, 14, 15, 17, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30, 31, 34, 39,
+		40, 41, 42, 43, 44, 52, 54, 55, 56, 57, 61, 63, 66, 68, 69, 70, 71, 74, 75, 77, 78, 79, 80, 83, 84, 85, 86, 88, 89, 91, 93, 94,
+		95, 96, 97, 99, 100, 101, 102, 103, 107, 113, 116, 117, 118, 119, 120, 121, 122, 124, 128, 129, 132, 134, 135, 139, 140, 143,
+		145, 146, 148, 149, 151, 152, 153, 154, 155, 156, 157, 160, 161, 164, 165, 170, 171, 172, 173, 174, 175, 177, 178, 180, 181,
+		182, 183, 184, 185, 187, 188, 190, 191, 194, 195, 196, 197, 198, 199, 201, 203, 204, 205, 206, 208, 209, 210, 212, 213, 214,
+		216, 217, 218, 220, 222, 223, 224, 225, 226, 228, 229, 231, 233, 234);
+	Global.Nodes_Node_Position = Array(Vector(-426.933, 11.107, 165.636), Vector(-435.290, 11.107, 175.816), Vector(-417.187, 11.107,
+		174.392), Vector(-418.923, 11.107, 155.467), Vector(-436.671, 11.107, 157.284), Vector(-411.399, 10.109, 157.251), Vector(
+		-412.899, 10.109, 164.284), Vector(-410.046, 10.109, 171.207), Vector(-404.146, 10.073, 179.628), Vector(-399.373, 9.356,
+		170.494), Vector(-400.612, 9.356, 156.531), Vector(-406.398, 10.073, 157.444), Vector(-390.327, 9.356, 170.263), Vector(
+		-387.132, 11.073, 175.829), Vector(-382.818, 12.064, 173.489), Vector(-381.297, 12.153, 169.383), Vector(-363.439, 12.035,
+		162.347), Vector(-366.843, 11.942, 173.557), Vector(-374.339, 12.073, 167.224), Vector(-360.475, 12.047, 169.633), Vector(
+		-359.050, 12.043, 163.962), Vector(-351.362, 12.073, 163.624), Vector(-350.832, 11.073, 180.412), Vector(-339.558, 12.073,
+		166.833), Vector(-334.737, 12.013, 167.103), Vector(-328.460, 12.013, 171.776), Vector(-322.151, 12.013, 166.934), Vector(
+		-325.122, 12.013, 163.523), Vector(-331.837, 12.013, 163.540), Vector(-328.463, 12.013, 162.415), Vector(-350.957, 12.073,
+		174.287), Vector(-328.373, 14.073, 178.350), Vector(-331.630, 14.073, 184.594), Vector(-328.341, 14.073, 187.221), Vector(
+		-324.950, 14.073, 184.333), Vector(-337.600, 8.208, 148.476), Vector(-351.935, 10.654, 146.766), Vector(-359.353, 10.607,
+		144.198), Vector(-351.274, 10.459, 135.578), Vector(-358.361, 10.459, 135.517), Vector(-364.593, 11.139, 142.776), Vector(
+		-364.667, 11.146, 138.362), Vector(-369.031, 12.037, 134.593), Vector(-371.288, 12.037, 130.132), Vector(-381.012, 9.126,
+		130.030), Vector(-387.784, 9.217, 136.608), Vector(-380.307, 9.128, 138.835), Vector(-383.044, 9.131, 144.299), Vector(
+		-398.933, 9.356, 148.545), Vector(-391.653, 9.121, 143.187), Vector(-385.902, 9.180, 158.544), Vector(-376.100, 11.822,
+		155.250), Vector(-367.546, 12.032, 155.642), Vector(-369.554, 11.840, 144.478), Vector(-378.065, 9.336, 125.593), Vector(
+		-363.500, 10.073, 125.645), Vector(-363.135, 9.339, 117.816), Vector(-371.185, 9.337, 119.358), Vector(-356.644, 8.288,
+		117.159), Vector(-353.165, 10.459, 130.005), Vector(-353.004, 8.136, 124.572), Vector(-348.233, 8.208, 117.481), Vector(
+		-340.646, 8.208, 117.623), Vector(-335.033, 9.809, 110.294), Vector(-330.400, 9.809, 111.475), Vector(-328.508, 9.809,
+		118.900), Vector(-340.044, 8.208, 140.430), Vector(-332.181, 8.815, 145.191), Vector(-337.202, 8.208, 136.581), Vector(
+		-332.285, 8.191, 131.983), Vector(-324.958, 8.148, 132.140), Vector(-324.873, 8.815, 136.762), Vector(-332.457, 8.815,
+		136.849), Vector(-324.921, 8.815, 145.293), Vector(-332.636, 8.193, 149.175), Vector(-336.423, 8.056, 144.000), Vector(
+		-320.865, 8.071, 143.849), Vector(-319.239, 8.208, 132.824), Vector(-320.887, 8.111, 136.898), Vector(-324.158, 8.094,
+		148.746), Vector(-320.040, 8.208, 149.641), Vector(-315.664, 8.208, 127.952), Vector(-308.834, 8.208, 118.064), Vector(
+		-315.849, 8.208, 117.659), Vector(-321.808, 9.809, 110.865), Vector(-304.150, 8.167, 122.826), Vector(-303.719, 10.459,
+		130.921), Vector(-305.353, 10.654, 146.374), Vector(-309.395, 8.290, 151.879), Vector(-313.374, 8.290, 155.056), Vector(
+		-299.148, 10.654, 144.433), Vector(-299.665, 10.459, 136.493), Vector(-306.397, 10.566, 136.495), Vector(-290.840, 11.840,
+		142.741), Vector(-285.036, 12.037, 130.606), Vector(-290.734, 11.839, 138.148), Vector(-278.349, 9.336, 125.662), Vector(
+		-278.004, 9.337, 130.131), Vector(-293.635, 10.073, 126.309), Vector(-293.874, 9.339, 117.281), Vector(-300.124, 8.294,
+		117.416), Vector(-272.836, 9.111, 133.046), Vector(-276.496, 9.130, 139.575), Vector(-271.865, 9.154, 144.411), Vector(
+		-265.874, 9.056, 138.819), Vector(-261.510, 9.356, 145.842), Vector(-249.633, 10.354, 156.887), Vector(-250.774, 10.354,
+		171.107), Vector(-257.099, 9.356, 170.490), Vector(-256.052, 9.356, 156.154), Vector(-251.243, 10.354, 179.995), Vector(
+		-266.741, 9.356, 169.516), Vector(-270.525, 11.073, 175.312), Vector(-276.126, 12.073, 169.184), Vector(-290.130, 11.937,
+		173.667), Vector(-294.413, 12.036, 161.691), Vector(-284.970, 12.073, 166.014), Vector(-296.808, 12.049, 169.393), Vector(
+		-298.602, 12.047, 165.039), Vector(-305.655, 12.070, 165.176), Vector(-305.634, 12.073, 174.141), Vector(-305.854, 11.073,
+		180.174), Vector(-328.213, 8.073, 180.814), Vector(-338.966, 11.073, 180.471), Vector(-317.872, 11.073, 180.273), Vector(
+		-317.779, 12.073, 173.120), Vector(-317.910, 12.073, 166.485), Vector(-288.441, 12.032, 155.356), Vector(-269.369, 9.160,
+		158.878), Vector(-282.567, 11.821, 153.443), Vector(-418.492, 11.107, 164.963), Vector(-436.102, 11.107, 166.495), Vector(
+		-405.593, 10.073, 170.968), Vector(-342.499, 8.290, 154.661), Vector(-328.505, 8.197, 153.182), Vector(-343.309, 8.120,
+		135.390), Vector(-342.439, 8.288, 144.412), Vector(-328.558, 8.120, 128.467), Vector(-339.983, 8.208, 129.228), Vector(
+		-336.585, 8.208, 132.354), Vector(-326.060, 9.809, 111.485), Vector(-314.631, 8.208, 134.649), Vector(-317.648, 8.120,
+		146.843), Vector(-313.863, 8.288, 140.940), Vector(-286.652, 11.821, 140.353), Vector(-259.940, 9.356, 149.094), Vector(
+		-380.858, 9.056, 134.346));
+	Global.Nodes_Selected = Array(False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+		False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+		False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+		False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+		False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+		False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+		False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+		False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+		False, False, False, False, False, False, False);
+	Global.Segments_ID = Array(4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 30, 31, 32, 33,
+		34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65,
+		66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 80, 81, 85, 86, 87, 89, 90, 91, 92, 93, 97, 98, 99, 100, 101, 104, 105, 106,
+		107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131,
+		132, 133, 134, 135, 136, 137, 138, 139, 140, 142, 143, 144, 145, 146, 149, 150, 151, 157, 158, 159, 160, 161, 163, 164, 165,
+		166, 167, 168, 169, 170, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192,
+		193, 194, 195, 196, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218,
+		219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246,
+		247, 248, 249, 250, 251, 252, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269);
+	Global.Segments_Node1 = Array(3, 4, 212, 2, 213, 6, 6, 5, 10, 9, 11, 11, 214, 214, 14, 15, 17, 9, 15, 83, 84, 80, 78, 78, 77, 91,
+		95, 94, 93, 75, 75, 74, 89, 86, 85, 15, 85, 85, 19, 19, 20, 21, 22, 27, 25, 28, 26, 25, 88, 88, 89, 70, 71, 71, 69, 66, 71, 69,
+		66, 63, 68, 69, 97, 97, 99, 96, 96, 100, 101, 102, 103, 118, 121, 117, 113, 128, 128, 117, 121, 116, 124, 216, 216, 216, 124,
+		217, 217, 44, 43, 39, 34, 30, 29, 29, 30, 52, 31, 203, 201, 201, 39, 40, 55, 54, 57, 56, 40, 41, 42, 217, 135, 122, 135, 139,
+		129, 122, 120, 134, 134, 132, 119, 120, 121, 120, 117, 128, 61, 220, 113, 113, 113, 101, 223, 223, 223, 223, 224, 224, 222,
+		118, 222, 119, 140, 222, 225, 107, 225, 146, 145, 140, 140, 226, 229, 228, 140, 229, 129, 134, 134, 226, 229, 41, 206, 205,
+		204, 199, 198, 197, 196, 195, 190, 194, 191, 196, 139, 153, 153, 152, 151, 154, 155, 156, 156, 149, 149, 148, 143, 143, 172,
+		171, 170, 164, 164, 165, 160, 161, 157, 154, 161, 155, 231, 161, 231, 157, 210, 208, 208, 210, 209, 185, 187, 188, 185, 182,
+		181, 181, 180, 183, 182, 209, 183, 233, 178, 177, 173, 174, 175, 233, 173, 164, 233, 185, 208, 78, 234, 234);
+	Global.Segments_Node2 = Array(4, 212, 2, 213, 3, 213, 5, 212, 212, 10, 10, 214, 12, 14, 15, 17, 214, 17, 83, 84, 80, 79, 84, 77,
+		91, 95, 94, 93, 91, 77, 74, 89, 86, 85, 14, 85, 83, 19, 14, 20, 21, 22, 27, 25, 28, 26, 27, 88, 86, 89, 70, 71, 74, 69, 66, 70,
+		66, 70, 63, 68, 69, 97, 68, 99, 96, 94, 100, 101, 102, 103, 107, 121, 117, 113, 128, 116, 121, 116, 116, 124, 61, 61, 63, 124,
+		217, 216, 44, 43, 39, 34, 30, 29, 25, 28, 52, 31, 203, 34, 203, 204, 40, 54, 54, 57, 56, 55, 41, 42, 44, 135, 122, 116, 139,
+		129, 122, 120, 134, 129, 132, 119, 120, 121, 119, 118, 128, 61, 220, 218, 61, 218, 220, 223, 118, 117, 218, 113, 117, 118, 223,
+		222, 119, 140, 222, 107, 146, 225, 103, 145, 140, 132, 226, 229, 228, 139, 139, 129, 228, 229, 226, 132, 132, 206, 205, 204,
+		199, 198, 197, 206, 195, 190, 194, 191, 196, 197, 153, 217, 152, 151, 154, 155, 156, 151, 149, 155, 148, 143, 145, 172, 171,
+		170, 164, 171, 165, 160, 161, 157, 154, 161, 155, 157, 160, 231, 157, 210, 231, 191, 210, 209, 185, 187, 188, 194, 182, 181,
+		184, 180, 183, 182, 209, 183, 233, 178, 177, 173, 174, 175, 178, 209, 165, 173, 185, 183, 157, 234, 79, 77);
+	Global.Attributes_Value = Array();
+	Global.Attributes_ID = Array();
+	Global.Attributes_Node1 = Array();
+	Global.Attributes_Node2 = Array();
+	Global.NodeUniqueID = 234;
+	Global.SegmentUniqueID = 269;
+	Global.AttributeUniqueID = 1;
+	Global.SelectedNodeIndex = -1;
+	Global.SelectedNodeID = -1;
+	Global.SelectedSegment = -1;
+	Global.AttributeTexts = Array();
+	Global.savedPlayerLocation = Vector(-385.928, 15.186, 136.417);
+	Global.savedPlayerDirection = Vector(0.614, -0.677, -0.407);
+	Global.controlTexts = Array(0, 3, 4, 5, 6, 7, 8, 9, 10);
+	Global.controlTextOrder = 9;
+	Global.connectingFromNode = -1;
+	Global.waitlessI = 1;
+	Global.IsNoclipping = True;
+	Global.dijkstraProgressReport = 133;
+	Global.Rules_Actions_Data = Array();
+	Global.Rules_ExecutesOnAttribute = Array();
+	Global.Rules_EnabledHeroes = Array();
+	Global.pagerButtons = Array();
+	Global.pathfinderAttributes = Array();
+	Global.buildToggles = Array(True, True, False);
+	Global.x = Array(79, 234, 80, 78, 77, 84, 89, 74, 75, 91);
+	Global.previouslySelectedNodeID = -1;
+	Global.attributeIndices = Array();
+	Global.input = Array(Custom String("←"), Array(9, 2), Array(10, 2), -1.128, -0.200, 0.200, 0.200, Color(White), Color(Blue), True,
+		True);
+	Global.returnValue___createButtonSubrou = 221;
+	Global.newState = 1;
+	Global.buttonID = 203;
+	Global.removeButtonIndex = 10;
+	Global._classIndexes = Array(-1, 1, 1, 0);
+	Global.func_group = Array();
+	Global.destroy_0 = Array();
+	Global.result = Custom String("");
+	Global.stringBuilder = Custom String("┃\n┃\n┃\n┃\n┃\n┃\n┃\n┃\n");
+	Global.lines_Type = Array(1, 0, 1, 0);
+	Global.lines_Content = Array(Array(Custom String("Connect: Paths"), Color(Rose)), Array(Custom String(
+		"In path mode, you can select two nodes in order to create a path.\nThis will allow bots to walk between both nodes."), Color(
+		White)), Array(Custom String("Connect: Attributes"), Color(Orange)), Array(Custom String(
+		"You can tag a path with the current \"Attribute\" value. Tagging paths\nmay have a few uses, for example:\n\n1. Creating one-ways, su"),
+		Color(White)));
+	Global.i_1 = 4;
+	Global.index = 145;
+	Global.index_0 = 22;
+}

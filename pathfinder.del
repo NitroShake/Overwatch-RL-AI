@@ -1,0 +1,355 @@
+globalvar define pfLoadedMap_nodes;
+globalvar define pfLoadedMap_neighbors;
+globalvar define pfIterationsThisTick;
+globalvar define pfExecOwner;
+globalvar define i_pathfind;
+playervar define pfWait;
+playervar define pfDestination;
+playervar define pfPlayerAttributes;
+playervar define pfAttributes;
+playervar define pfSavedTarget;
+playervar define pfIsPathfinding;
+playervar define pfCurrentNodeIndex;
+playervar define pfWalkingToPosition;
+playervar define pfPath;
+playervar define pfStartTime;
+playervar define pfWalkingFromPosition;
+playervar define pfActiveNode;
+playervar define pfStuckOnNode;
+playervar define pfWasBroadcasted;
+playervar define pfIsStuck;
+playervar define goal;
+playervar define scores_gScore;
+playervar define scores_fScore;
+playervar define scores_parent;
+playervar define scores_nodeIndex;
+playervar define open;
+playervar define checkedNode;
+playervar define iter;
+playervar define current;
+playervar define currentInExistingPath;
+playervar define broadcastTo;
+playervar define neighbor;
+playervar define neighborI;
+playervar define scoreIndex;
+playervar define score;
+
+rule: "【PF Core】Prepare loaded map"
+{
+    WaitUntil(pfLoadedMap_nodes, 9999);
+    for (i_pathfind = 0; CountOf(pfLoadedMap_nodes); 1)
+    {
+        pfLoadedMap_nodes[i_pathfind] = Vector(XOf(pfLoadedMap_nodes[i_pathfind]), RoundToInteger(YOf(pfLoadedMap_nodes[i_pathfind]), Rounding.Down) + i_pathfind / 1000 * (YOf(pfLoadedMap_nodes[i_pathfind]) < 0 ? -1 : 1), ZOf(pfLoadedMap_nodes[i_pathfind]));
+    }
+}
+
+rule: "【PF Core】Select next pathfinder"
+if ((!EntityExists(pfExecOwner) || pfExecOwner == null) == true)
+if (IsTrueForAny(AllPlayers(Team.All), ArrayElement().pfWait) == true)
+{
+    pfExecOwner = FirstOf(SortedArray(FilteredArray(AllPlayers(Team.All), ArrayElement().pfWait), ArrayElement().pfWait));
+    MinWait();
+    LoopIfConditionIsTrue();
+}
+
+void pfTick() "【PF Core Subroutine】☞ Tick"
+{
+    pfIterationsThisTick -= 1;
+    if (pfIterationsThisTick <= 0)
+    {
+        MinWait();
+        WaitUntil(Max(ServerLoadAverage(), ServerLoad()) < 255, 0.25);
+        # This determines the pathfinding budget for the current tick.
+        pfIterationsThisTick = (Max(ServerLoadAverage(), ServerLoad()) < 230) + (Max(ServerLoadAverage(), ServerLoad()) < 180) * 2 + 1;
+    }
+}
+
+void pfUpdateNodeMeta() "【PF Core Subroutine】☞ Update node meta"
+{
+    if (pfCurrentNodeIndex != -1)
+    {
+        pfActiveNode = pfCurrentNodeIndex;
+    }
+    if (pfStuckOnNode == 1)
+    {
+        pfStuckOnNode = 0;
+    }
+    # Update the pathfinding start time.
+    pfStartTime = TotalTimeElapsed();
+    pfWalkingFromPosition = PositionOf(EventPlayer());
+}
+
+void pfWalkToDestination() "☆【PF Core Subroutine】☞ Walk to destination"
+{
+    StartThrottleInDirection(EventPlayer(), DirectionTowards(PositionOf(EventPlayer()), pfWalkingToPosition), pfWalkingToPosition && (pfCurrentNodeIndex != -1 || DistanceBetween(PositionOf(EventPlayer()), pfWalkingToPosition) > 0.4), Relative.ToWorld, ThrottleBehavior.ReplaceExistingThrottle, ThrottleRev.DirectionAndMagnitude);
+}
+
+rule: "【PF Core】Update & Execute"
+Event.OngoingPlayer
+if (pfDestination == true)
+if (DistanceBetween(EventPlayer(), pfDestination) > 4)
+if ((!pfSavedTarget || DistanceBetween(pfDestination, pfSavedTarget) > 5) == true)
+{
+    # Ensure that a map is loaded.
+    if (!pfLoadedMap_nodes)
+    {
+        LogToInspector(<"Error: Attempted to pathfind player <0> without a loaded map.", EventPlayer()>);
+        Abort();
+    }
+    pfWait = TotalTimeElapsed();
+    pfWasBroadcasted = false;
+    WaitUntil(pfExecOwner == EventPlayer() || pfWasBroadcasted, 9999);
+    # Update saved destination
+    pfSavedTarget = pfDestination;
+    if (!pfWasBroadcasted)
+    {
+        goal = RoundToInteger(AbsoluteValue(YOf(FirstOf(SortedArray(ArraySlice(SortedArray(pfLoadedMap_nodes, DistanceBetween(ArrayElement(), pfSavedTarget)), 0, 5), !IsInLineOfSight(ArrayElement() + Vector(0, 2, 0), pfSavedTarget + Vector(0, 2, 0), BarrierLOS.NoBarriersBlock))))) * 1000 % 1000, Rounding.Down);
+        pfTick();
+        if (pfIsPathfinding && pfCurrentNodeIndex != -1)
+        {
+            pfActiveNode = pfCurrentNodeIndex;
+        }
+        else
+        {
+            pfActiveNode = RoundToInteger(AbsoluteValue(YOf(FirstOf(SortedArray(ArraySlice(SortedArray(pfLoadedMap_nodes, DistanceBetween(ArrayElement(), PositionOf(EventPlayer()))), 0, 5), !IsInLineOfSight(ArrayElement() + Vector(0, 2, 0), PositionOf(EventPlayer()) + Vector(0, 2, 0), BarrierLOS.NoBarriersBlock))))) * 1000 % 1000, Rounding.Down);
+            pfTick();
+        }
+        scores_gScore = [0];
+        scores_fScore = [0];
+        scores_parent = [-1];
+        scores_nodeIndex = [goal];
+        open = [0];
+        checkedNode = pfActiveNode;
+        iter = 0;
+        while (CountOf(open) || iter > 30)
+        {
+            # The index of the current node in `scores`.
+            current = FirstOf(SortedArray(open, scores_fScore[ArrayElement()]));
+            if (checkedNode != pfActiveNode)
+            {
+                checkedNode = IndexOfArrayValue(scores_nodeIndex, pfActiveNode);
+                if (checkedNode != -1)
+                {
+                    current = checkedNode;
+                    checkedNode = -2;
+                }
+                else
+                {
+                    checkedNode = pfActiveNode;
+                }
+            }
+            currentInExistingPath = IndexOfArrayValue(pfPath, scores_nodeIndex[current]);
+            # If the goal was found, reconstruct the path.
+            if (scores_nodeIndex[current] == pfActiveNode || checkedNode == -2 || currentInExistingPath != -1)
+            {
+                if (currentInExistingPath == -1)
+                {
+                    pfPath = [];
+                }
+                else
+                {
+                    pfPath = ArraySlice(pfPath, 0, currentInExistingPath);
+                }
+                while (current != -1)
+                {
+                    ModifyVariable(pfPath, Operation.AppendToArray, scores_nodeIndex[current]);
+                    current = scores_parent[current];
+                }
+                ModifyVariable(pfPath, Operation.AppendToArray, [-1]);
+                broadcastTo = FilteredArray(PlayersWithinRadius(PositionOf(EventPlayer()) + Up(), 4, Team.All, RadiusLOS.Off), ArrayElement() != EventPlayer() && ArrayElement().pfWait && DistanceBetween(ArrayElement().pfDestination, pfDestination) < 4 && ArrayElement().pfPlayerAttributes == pfPlayerAttributes);
+                broadcastTo.pfPath = pfPath;
+                broadcastTo.pfWasBroadcasted = true;
+                Skip(27);
+            }
+            ModifyVariable(open, Operation.RemoveFromArrayByValue, current);
+            # Check each neighbor to the current node.
+            for (neighbor = 0; CountOf(pfLoadedMap_neighbors[scores_nodeIndex[current]]); 1)
+            {
+                # The neighbor index to be used like `pfLoadedMap.nodes[neighborI]`.
+                neighborI = FirstOf(pfLoadedMap_neighbors[scores_nodeIndex[current]][neighbor]);
+                scoreIndex = IndexOfArrayValue(scores_nodeIndex, neighborI);
+                # Ensure that the path to the neighbor is enabled.
+                if (CountOf(pfLoadedMap_neighbors[scores_nodeIndex[current]][neighbor][1]) == 0 || IsTrueForAny(pfLoadedMap_neighbors[scores_nodeIndex[current]][neighbor][1], ArrayContains(pfPlayerAttributes, ArrayElement())))
+                {
+                    score = scores_gScore[current] + DistanceBetween(pfLoadedMap_nodes[scores_nodeIndex[current]], pfLoadedMap_nodes[neighborI]);
+                    # Get neighbor index in scores.\r\nIf -1, the neighbor was not added to the score list yet.
+                    if (scoreIndex == -1)
+                    {
+                        ModifyVariable(open, Operation.AppendToArray, CountOf(scores_gScore));
+                        ModifyVariable(scores_gScore, Operation.AppendToArray, score);
+                        ModifyVariable(scores_fScore, Operation.AppendToArray, score + DistanceBetween(pfLoadedMap_nodes[neighborI], pfLoadedMap_nodes[pfActiveNode]) * 20);
+                        ModifyVariable(scores_parent, Operation.AppendToArray, current);
+                        ModifyVariable(scores_nodeIndex, Operation.AppendToArray, neighborI);
+                    }
+                    else if (score < scores_gScore[scoreIndex])
+                    {
+                        scores_gScore[scoreIndex] = score;
+                        scores_fScore[scoreIndex] = score + DistanceBetween(pfLoadedMap_nodes[neighborI], pfLoadedMap_nodes[pfActiveNode]) * 20;
+                        scores_parent[scoreIndex] = current;
+                        scores_nodeIndex[scoreIndex] = neighborI;
+                        if (!ArrayContains(open, scoreIndex))
+                        {
+                            ModifyVariable(open, Operation.AppendToArray, scoreIndex);
+                        }
+                    }
+                }
+                pfTick();
+            }
+            iter += 1;
+        }
+        pfExecOwner = null;
+    }
+    if (CountOf(pfPath))
+    {
+        pfIsPathfinding = true;
+        pfCurrentNodeIndex = FirstOf(pfPath);
+        pfWalkingToPosition = pfLoadedMap_nodes[pfCurrentNodeIndex];
+        pfUpdateNodeMeta();
+        pfWalkToDestination();
+    }
+    pfWait = null;
+    Wait(2, WaitBehavior.IgnoreCondition);
+    LoopIfConditionIsTrue();
+}
+
+void pfProgressEventPlayer() "【PF Core Subroutine】☞ Progress event player"
+{
+    if (CountOf(pfPath) == 0)
+    {
+        Skip(10);
+    }
+    # Pop the current path.
+    ModifyVariable(pfPath, Operation.RemoveFromArrayByIndex, 0);
+    # Update the current pathfind attributes.
+    if (CountOf(pfPath) && FirstOf(pfPath) != -1)
+    {
+        # Any rules watching these with the matching condition will activate.
+        pfAttributes = LastOf(FirstOf(FilteredArray(pfLoadedMap_neighbors[FirstOf(pfPath)], FirstOf(ArrayElement()) == pfCurrentNodeIndex)));
+    }
+    else
+    {
+        pfAttributes = [];
+    }
+    # Go to the next node in the path.
+    pfCurrentNodeIndex = FirstOf(pfPath);
+    # Set the position that the player is currently walking towards.
+    pfWalkingToPosition = pfCurrentNodeIndex == -1 ? DistanceBetween(pfDestination, pfSavedTarget) <= 4 ? pfDestination : PositionOf(EventPlayer()) : pfLoadedMap_nodes[pfCurrentNodeIndex];
+    pfUpdateNodeMeta();
+}
+
+rule: "【PF Core】Node reached"
+Event.OngoingPlayer
+if (pfIsPathfinding == true)
+if (pfWalkingToPosition == true)
+if (DistanceBetween(PositionOf(EventPlayer()) * Vector(1, [], 1), pfWalkingToPosition * Vector(1, [], 1)) <= 0.4)
+if (AbsoluteValue(YOf(PositionOf(EventPlayer())) - YOf(pfWalkingToPosition)) <= 1.5)
+if (CountOf(pfPath) > 0)
+if (pfCurrentNodeIndex != -1)
+{
+    pfProgressEventPlayer();
+    Wait(0.2, WaitBehavior.IgnoreCondition);
+    LoopIfConditionIsTrue();
+}
+
+rule: "【PF Core】Stop throttle when pfDestination is reset"
+Event.OngoingPlayer
+if (pfIsPathfinding == true)
+if (pfDestination == null)
+{
+    StopThrottleInDirection(EventPlayer());
+    pfIsPathfinding = false;
+    pfSavedTarget = null;
+}
+
+void pfRecalibrate() "【PF Core Subroutine】☞ Recalibrate"
+{
+    StopThrottleInDirection(EventPlayer());
+    pfCurrentNodeIndex = -1;
+    pfSavedTarget = null;
+    pfIsPathfinding = false;
+    pfWalkingToPosition = PositionOf(EventPlayer());
+}
+
+rule: "【PF Core】Insurance"
+Event.OngoingPlayer
+if (pfIsPathfinding == true)
+if (pfWalkingToPosition == true)
+{
+    # Recalibrate
+    if (DistanceBetween((pfWalkingFromPosition + pfWalkingToPosition) / 2, EventPlayer()) > (DistanceBetween(pfWalkingFromPosition, pfWalkingToPosition) + 2) * 1.2)
+    {
+        pfRecalibrate();
+    }
+    else if (CountOf(pfPath) == 2 && DistanceBetween(EventPlayer(), pfSavedTarget) < DistanceBetween(pfWalkingToPosition, pfSavedTarget) && IsInLineOfSight(PositionOf(EventPlayer()) + Vector(0, 0.25, 0), pfSavedTarget + Vector(0, 0.25, 0), BarrierLOS.NoBarriersBlock))
+    {
+        pfProgressEventPlayer();
+    }
+    else if (DistanceBetween(EventPlayer(), pfWalkingToPosition) > 0.25 && pfIsStuck || DistanceBetween(pfWalkingFromPosition, pfWalkingToPosition) - 4.95 * (TotalTimeElapsed() - pfStartTime) < 0 && !HasStatus(EventPlayer(), Status.Rooted) && !HasStatus(EventPlayer(), Status.Frozen) && !HasStatus(EventPlayer(), Status.Asleep) && !HasStatus(EventPlayer(), Status.KnockedDown) && !HasStatus(EventPlayer(), Status.Stunned))
+    {
+        if (pfCurrentNodeIndex == -1)
+        {
+            pfWalkingToPosition = null;
+        }
+        else if (pfStuckOnNode - 2 == pfCurrentNodeIndex)
+        {
+            LogToInspector(<"Pathfinder <0> struggled to reach node <1> at <2>. Try adjusting your map in the editor.", EventPlayer(), pfCurrentNodeIndex, pfLoadedMap_nodes[pfCurrentNodeIndex]>);
+            Teleport(EventPlayer(), pfWalkingToPosition);
+        }
+        else
+        {
+            pfStuckOnNode = pfCurrentNodeIndex + 2;
+            pfRecalibrate();
+        }
+    }
+    else if (pfWalkingToPosition != pfDestination && pfCurrentNodeIndex == -1 && DistanceBetween(pfSavedTarget, pfDestination) < 5 && IsInLineOfSight(pfSavedTarget + Up(), pfDestination + Up(), BarrierLOS.NoBarriersBlock))
+    {
+        pfWalkingToPosition = pfDestination;
+    }
+    Wait(2, WaitBehavior.IgnoreCondition);
+    LoopIfConditionIsTrue();
+}
+
+rule: "【PF Core】Check throttle"
+Event.OngoingPlayer
+if (pfIsPathfinding == true)
+if (MagnitudeOf(VelocityOf(EventPlayer())) < 3)
+{
+    Wait(2.1, WaitBehavior.AbortWhenFalse);
+    pfIsStuck = true;
+    WaitUntil(!pfWalkingToPosition || !pfIsPathfinding || MagnitudeOf(VelocityOf(EventPlayer())) >= 3, 9999);
+    pfIsStuck = false;
+}
+
+void pfLookAtDestination() "☆【PF Core Subroutine】☞ Look at destination"
+{
+    # Calling this subroutine will make the player look to the point they are walking towards.
+    StartFacing(EventPlayer(), DirectionTowards(EyePosition(EventPlayer()) * (DistanceBetween(PositionOf(EventPlayer()), pfWalkingToPosition) < 3 ? Vector(1, [], 1) : Vector(1, 1, 1)), (pfWalkingToPosition + Vector(0, 1.5, 0)) * (DistanceBetween(PositionOf(EventPlayer()), pfWalkingToPosition) < 3 ? Vector(1, [], 1) : Vector(1, 1, 1))), 500, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
+}
+
+rule: "【Map】Busan (nodes)"
+if (CurrentMap() == Map.Busan)
+{
+    pfLoadedMap_nodes = [Vector(-426.93, 11.11, 165.64), Vector(-435.29, 11.11, 175.82), Vector(-417.19, 11.11, 174.39), Vector(-418.92, 11.11, 155.47), Vector(-436.67, 11.11, 157.28), Vector(-411.4, 10.11, 157.25), Vector(-412.9, 10.11, 164.28), Vector(-410.05, 10.11, 171.21), Vector(-404.15, 10.07, 179.63), Vector(-399.37, 9.36, 170.49), Vector(-400.61, 9.36, 156.53), Vector(-406.4, 10.07, 157.44), Vector(-390.33, 9.36, 170.26), Vector(-387.13, 11.07, 175.83), Vector(-382.82, 12.06, 173.49), Vector(-381.3, 12.15, 169.38), Vector(-363.44, 12.03, 162.35), Vector(-366.84, 11.94, 173.56), Vector(-374.34, 12.07, 167.22), Vector(-360.48, 12.05, 169.63), Vector(-359.05, 12.04, 163.96), Vector(-351.36, 12.07, 163.62), Vector(-350.83, 11.07, 180.41), Vector(-339.56, 12.07, 166.83), Vector(-334.74, 12.01, 167.1), Vector(-328.46, 12.01, 171.78), Vector(-322.15, 12.01, 166.93), Vector(-325.12, 12.01, 163.52), Vector(-331.84, 12.01, 163.54), Vector(-328.46, 12.01, 162.41), Vector(-350.96, 12.07, 174.29), Vector(-328.37, 14.07, 178.35), Vector(-331.63, 14.07, 184.59), Vector(-328.34, 14.07, 187.22), Vector(-324.95, 14.07, 184.33), Vector(-337.6, 8.21, 148.48), Vector(-351.93, 10.65, 146.77), Vector(-359.35, 10.61, 144.2), Vector(-351.27, 10.46, 135.58), Vector(-358.36, 10.46, 135.52), Vector(-364.59, 11.14, 142.78), Vector(-364.67, 11.15, 138.36), Vector(-369.03, 12.04, 134.59), Vector(-371.29, 12.04, 130.13), Vector(-381.01, 9.13, 130.03), Vector(-387.78, 9.22, 136.61), Vector(-380.31, 9.13, 138.84), Vector(-383.04, 9.13, 144.3), Vector(-398.93, 9.36, 148.54), Vector(-391.65, 9.12, 143.19), Vector(-385.9, 9.18, 158.54), Vector(-376.1, 11.82, 155.25), Vector(-367.55, 12.03, 155.64), Vector(-369.55, 11.84, 144.48), Vector(-378.07, 9.34, 125.59), Vector(-363.5, 10.07, 125.64), Vector(-363.14, 9.34, 117.82), Vector(-371.18, 9.34, 119.36), Vector(-356.64, 8.29, 117.16), Vector(-353.17, 10.46, 130.01), Vector(-353, 8.14, 124.57), Vector(-348.23, 8.21, 117.48), Vector(-340.65, 8.21, 117.62), Vector(-335.03, 9.81, 110.29), Vector(-330.4, 9.81, 111.47), Vector(-328.51, 9.81, 118.9), Vector(-340.04, 8.21, 140.43), Vector(-332.18, 8.81, 145.19), Vector(-337.2, 8.21, 136.58), Vector(-332.29, 8.19, 131.98), Vector(-324.96, 8.15, 132.14), Vector(-324.87, 8.81, 136.76), Vector(-332.46, 8.81, 136.85), Vector(-324.92, 8.81, 145.29), Vector(-332.64, 8.19, 149.18), Vector(-336.42, 8.06, 144), Vector(-320.86, 8.07, 143.85), Vector(-319.24, 8.21, 132.82), Vector(-320.89, 8.11, 136.9), Vector(-324.16, 8.09, 148.75), Vector(-320.04, 8.21, 149.64), Vector(-315.66, 8.21, 127.95), Vector(-308.83, 8.21, 118.06), Vector(-315.85, 8.21, 117.66), Vector(-321.81, 9.81, 110.86), Vector(-304.15, 8.17, 122.83), Vector(-303.72, 10.46, 130.92), Vector(-305.35, 10.65, 146.37), Vector(-309.39, 8.29, 151.88), Vector(-313.37, 8.29, 155.06), Vector(-299.15, 10.65, 144.43), Vector(-299.67, 10.46, 136.49), Vector(-306.4, 10.57, 136.49), Vector(-290.84, 11.84, 142.74), Vector(-285.04, 12.04, 130.61), Vector(-290.73, 11.84, 138.15), Vector(-278.35, 9.34, 125.66), Vector(-278, 9.34, 130.13), Vector(-293.64, 10.07, 126.31), Vector(-293.87, 9.34, 117.28), Vector(-300.12, 8.29, 117.42), Vector(-272.84, 9.11, 133.05), Vector(-276.5, 9.13, 139.57), Vector(-271.86, 9.15, 144.41), Vector(-265.87, 9.06, 138.82), Vector(-261.51, 9.36, 145.84), Vector(-249.63, 10.35, 156.89), Vector(-250.77, 10.35, 171.11), Vector(-257.1, 9.36, 170.49), Vector(-256.05, 9.36, 156.15), Vector(-251.24, 10.35, 179.99), Vector(-266.74, 9.36, 169.52), Vector(-270.52, 11.07, 175.31), Vector(-276.13, 12.07, 169.18), Vector(-290.13, 11.94, 173.67), Vector(-294.41, 12.04, 161.69), Vector(-284.97, 12.07, 166.01), Vector(-296.81, 12.05, 169.39), Vector(-298.6, 12.05, 165.04), Vector(-305.65, 12.07, 165.18), Vector(-305.63, 12.07, 174.14), Vector(-305.85, 11.07, 180.17), Vector(-328.21, 8.07, 180.81), Vector(-338.97, 11.07, 180.47), Vector(-317.87, 11.07, 180.27), Vector(-317.78, 12.07, 173.12), Vector(-317.91, 12.07, 166.49), Vector(-288.44, 12.03, 155.36), Vector(-269.37, 9.16, 158.88), Vector(-282.57, 11.82, 153.44), Vector(-418.49, 11.11, 164.96), Vector(-436.1, 11.11, 166.49), Vector(-405.59, 10.07, 170.97), Vector(-342.5, 8.29, 154.66), Vector(-328.51, 8.2, 153.18), Vector(-343.31, 8.12, 135.39), Vector(-342.44, 8.29, 144.41), Vector(-328.56, 8.12, 128.47), Vector(-339.98, 8.21, 129.23), Vector(-336.58, 8.21, 132.35), Vector(-326.06, 9.81, 111.49), Vector(-314.63, 8.21, 134.65), Vector(-317.65, 8.12, 146.84), Vector(-313.86, 8.29, 140.94), Vector(-286.65, 11.82, 140.35), Vector(-259.94, 9.36, 149.09), Vector(-380.86, 9.06, 134.35)];
+}
+
+rule: "【Map】Busan (neighbors)"
+if (CurrentMap() == Map.Busan)
+{
+    pfLoadedMap_neighbors = [[[130, []], [131, []]], [[2, []], [131, []]], [[1, []], [130, []]], [[4, []], [130, []]], [[131, []], [3, []]], [[6, []], [11, []]], [[130, []], [5, []], [7, []]], [[6, []], [132, []]], [[132, []]], [[132, []], [10, []], [50, []], [12, []]], [[9, []], [11, []], [48, []], [50, []]], [[10, []], [132, []], [5, []]], [[50, []], [9, []], [13, []]], [[12, []], [14, []]], [[13, []], [15, []]], [[14, []], [18, []]], [[18, []], [19, []], [52, []], [20, []]], [[19, []], [18, []]], [[15, []], [16, []], [17, []]], [[16, []], [17, []], [20, []]], [[21, []], [16, []], [19, []]], [[23, []], [20, []], [30, []]], [[30, []], [123, []]], [[24, []], [21, []], [123, []]], [[28, []], [23, []], [25, []]], [[24, []], [31, []], [26, []]], [[25, []], [27, []], [126, []]], [[26, []], [29, []]], [[29, []], [24, []]], [[134, []], [28, []], [27, []]], [[21, []], [22, []]], [[25, []], [32, []], [34, []]], [[31, []], [33, []]], [[34, []], [32, []]], [[31, []], [33, []]], [[74, []], [133, []], [75, []], [136, []], [66, []]], [[37, []], [38, []], [133, []]], [[39, []], [40, []], [41, []], [36, []]], [[36, []], [39, []], [59, []]], [[41, []], [37, []], [40, []], [38, []], [59, []]], [[53, []], [41, []], [37, []], [39, []]], [[40, []], [42, []], [39, []], [37, []]], [[43, []], [53, []], [41, []]], [[44, []], [42, []]], [[45, []], [54, []], [43, []], [146, []]], [[49, []], [44, []], [146, []]], [[47, []], [146, []]], [[49, []], [46, []]], [[10, []], [49, []], [50, []]], [[48, []], [47, []], [45, []]], [[51, []], [9, []], [10, []], [48, []], [12, []]], [[53, []], [50, []], [52, []]], [[16, []], [51, []], [53, []]], [[42, []], [51, []], [52, []], [40, []]], [[44, []], [57, []], [55, []]], [[56, []], [54, []]], [[57, []], [55, []], [58, []]], [[54, []], [56, []]], [[60, []], [56, []], [61, []]], [[39, []], [38, []], [60, []]], [[59, []], [58, []]], [[58, []], [62, []]], [[61, []], [63, []], [138, []]], [[62, []], [64, []]], [[63, []], [65, []], [140, []]], [[64, []], [137, []], [140, []]], [[68, []], [75, []], [35, []], [135, []], [136, []], [138, []]], [[75, []], [68, []], [72, []], [74, []], [73, []]], [[72, []], [66, []], [67, []], [75, []], [138, []], [139, []]], [[72, []], [71, []], [138, []], [139, []], [137, []]], [[77, []], [71, []], [72, []], [137, []], [81, []]], [[73, []], [78, []], [70, []], [72, []], [69, []]], [[69, []], [68, []], [75, []], [67, []], [71, []], [70, []]], [[79, []], [67, []], [76, []], [71, []]], [[67, []], [35, []], [133, []], [134, []]], [[66, []], [67, []], [72, []], [68, []], [35, []]], [[80, []], [73, []], [78, []], [143, []], [142, []]], [[78, []], [70, []], [81, []], [141, []], [143, []]], [[71, []], [76, []], [77, []], [143, []], [141, []]], [[134, []], [73, []], [80, []]], [[79, []], [76, []], [142, []], [81, []], [89, []]], [[70, []], [137, []], [83, []], [77, []], [141, []], [80, []]], [[85, []], [83, []], [100, []]], [[84, []], [81, []], [82, []]], [[140, []], [83, []]], [[86, []], [82, []]], [[92, []], [91, []], [85, []]], [[88, []], [90, []], [92, []]], [[89, []], [87, []]], [[80, []], [134, []], [88, []]], [[87, []], [91, []], [93, []], [95, []]], [[90, []], [92, []], [86, []], [95, []], [93, []]], [[91, []], [87, []], [86, []]], [[95, []], [90, []], [91, []], [144, []], [129, []], [127, []]], [[97, []], [95, []], [144, []]], [[94, []], [93, []], [90, []], [91, []], [144, []]], [[98, []], [99, []], [97, []], [101, []]], [[96, []], [94, []], [101, []]], [[99, []], [96, []]], [[100, []], [98, []], [96, []]], [[82, []], [99, []]], [[104, []], [102, []], [97, []], [96, []]], [[101, []], [103, []]], [[102, []], [105, []]], [[105, []], [101, []]], [[145, []], [104, []], [103, []]], [[107, []], [109, []]], [[108, []], [110, []], [106, []]], [[111, []], [107, []], [109, []], [128, []]], [[106, []], [108, []], [128, []], [145, []], [111, []]], [[107, []]], [[128, []], [112, []], [108, []], [145, []], [109, []]], [[111, []], [113, []]], [[112, []], [116, []]], [[117, []], [116, []]], [[116, []], [118, []], [127, []]], [[114, []], [115, []], [113, []]], [[118, []], [114, []]], [[117, []], [115, []], [119, []]], [[120, []], [126, []], [118, []]], [[121, []], [119, []]], [[124, []], [120, []]], [[123, []], [124, []]], [[22, []], [23, []], [122, []]], [[122, []], [125, []], [121, []]], [[126, []], [124, []]], [[26, []], [125, []], [119, []]], [[115, []], [129, []], [93, []]], [[129, []], [111, []], [108, []], [109, []], [145, []]], [[93, []], [144, []], [127, []], [128, []]], [[2, []], [0, []], [3, []], [6, []]], [[0, []], [1, []], [4, []]], [[7, []], [8, []], [9, []], [11, []]], [[35, []], [36, []], [74, []], [134, []]], [[74, []], [133, []], [29, []], [79, []], [89, []]], [[136, []], [66, []], [138, []]], [[35, []], [135, []], [66, []]], [[138, []], [69, []], [70, []], [81, []], [65, []]], [[62, []], [69, []], [68, []], [135, []], [66, []], [137, []]], [[68, []], [69, []]], [[84, []], [65, []], [64, []]], [[81, []], [143, []], [78, []], [77, []]], [[143, []], [80, []], [76, []]], [[141, []], [142, []], [76, []], [78, []], [77, []]], [[94, []], [95, []], [93, []], [129, []]], [[109, []], [105, []], [128, []], [111, []]], [[45, []], [46, []], [44, []]]];
+}
+
+rule: "Rule 16"
+Event.OngoingPlayer
+if (IsDummyBot(EventPlayer()) == true)
+{
+    pfDestination = PositionOf(PlayersInSlot(0, Team.Team1));
+    Wait(0.25, WaitBehavior.IgnoreCondition);
+    Loop();
+}
+
+rule: "Rule 17"
+{
+    Wait(10, WaitBehavior.IgnoreCondition);
+    CreateDummyBot(Hero.Soldier76, Team.Team1, -1, PositionOf(PlayersInSlot(0, Team.All)), Vector(0, 0, 0));
+    LogToInspector('decompiled version :D');
+}

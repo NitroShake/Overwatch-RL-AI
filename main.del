@@ -1,3 +1,7 @@
+//This is the main file - you'll want to compile using this file (it imports every other one).
+
+import 'pathfinder.del';
+
 globalvar define e = 2.718281828;
 playervar define reward = 0;
 globalvar define choiceMaxSteps = 3;
@@ -193,6 +197,7 @@ Number sumArray(define array) {
 rule: 'AI Loop'
 Event.OngoingPlayer
 Player.Slot0
+if (false)
 {
     define choicePositions = [];
     define choiceTargets = [];
@@ -200,8 +205,8 @@ Player.Slot0
     define choiceValues = [];
 
     //get the values of every possible state/action
-    for (define i = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
-        for (define j = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
+    for (define i! = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
+        for (define j! = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
             define position = NearestWalkablePosition(WorldVectorOf(Vector(0,0,0), EventPlayer(), LocalVector.RotationAndTranslation) + 
                                                       Vector(choiceMaxSteps * choiceStepSize, 0, choiceMaxSteps * choiceStepSize));
             define input = getInputs(position);
