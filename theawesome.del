@@ -230,6 +230,7 @@ Player.Slot0
     }
 
     //todo: aim at target, move towards position, add inputs to the tracky thing (you know what i mean)
+    //the big 3 todos, while i'm here: inputs, pathfinding and tracky thing (as listed above)
 
 
     //end rule, run again next tick
