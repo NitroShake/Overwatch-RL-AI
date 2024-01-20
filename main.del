@@ -12,6 +12,7 @@ globalvar define pastInputTimes = [];
 globalvar define pastInputRewards = [];
 globalvar define aiIsRunning = false;
 playervar define aimTarget = null;
+playervar define dmgPercent = 30; //dmg multiplier (in percent) for primary fire (compensating for near-perfect aim)
 
 class NeuralNetwork {
     define learningRate = 0.01;
@@ -153,6 +154,14 @@ globalvar NeuralNetwork targetNetwork;
 globalvar NeuralNetwork passiveNetwork;
 
 rule: 'AI Init'
+Player.Slot0
+Team.Team1
+{
+    
+}
+
+
+rule: 'AI Test'
 Player.Slot0
 Team.Team1
 {
@@ -324,6 +333,32 @@ Event.OngoingPlayer
 if (IsDummyBot(EventPlayer()) && aimTarget != null && AbilityCooldown(EventPlayer(), Button.SecondaryFire) == 0)
 {
     PressButton(EventPlayer(), Button.SecondaryFire);
+}
+
+
+//explaining the next 3 rules:
+//The AI has near-perfect aim with primary fire. 
+//To offset this, the damage dealt outside of its ultimate (which intentionally gives it perfect aim) is lowered to dmgPercent.
+//When other abilities (e.g., rocket) hits, the AI's aim is imperfect, so extra damage is dealt to bring the damage dealt back up.
+rule: 'AI dmg adjust for ult'
+Event.OngoingPlayer
+if (IsDummyBot(EventPlayer()) && IsUsingUltimate(EventPlayer()))
+{
+    SetDamageDealt(EventPlayer(), 100);
+}
+
+rule: 'AI dmg adjust for non-ult'
+Event.OngoingPlayer
+if (IsDummyBot(EventPlayer()) && !IsUsingUltimate(EventPlayer()))
+{
+    SetDamageDealt(EventPlayer(), dmgPercent);
+}
+
+rule: 'AI deal extra damage to offset nerf'
+Event.OnDamageDealt
+if (IsDummyBot(EventPlayer()) && EventAbility() != Button.PrimaryFire)
+{
+    Damage(Victim(), EventPlayer(), EventDamage() / dmgPercent);
 }
 
 rule: 'deltaTime update'
