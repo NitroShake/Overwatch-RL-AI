@@ -146,7 +146,7 @@ rule: 'Match Init'
     SetMatchTime(0);
 
     //spawn dummy next to slot 1 (teammate)
-    CreateDummyBot(Hero.Soldier76, Team.Team1, 0, PlayersInSlot(1));
+    CreateDummyBot(Hero.Soldier76, Team.Team1, 0, PlayersInSlot(1)[0]);
 }
 
 globalvar NeuralNetwork targetNetwork;
@@ -154,6 +154,7 @@ globalvar NeuralNetwork passiveNetwork;
 
 rule: 'AI Init'
 Player.Slot0
+Team.Team1
 {
     targetNetwork = new NeuralNetwork(0.1, [[0.3, 0.8], [0.6, -0.7], [-0.4, -0.5]], [-0.3, 0.2]);
     LogToInspector(targetNetwork.feedForward([0.36, -1, 0.4]));
@@ -259,8 +260,11 @@ if (false)
     pastInputRewards = Append(pastInputRewards, 0);
     //end rule, run again next tick
     Wait(0.016);
+    //todo: if aiIsRunning = true
     Loop();
 }
+
+//todo: make aiIsRunning false once the first round is over (only one round will be simulated per match)
 
 void handleBackprop() {
     define indexesToRemove = [];
@@ -291,8 +295,12 @@ void handleBackprop() {
     deltaReward = 0;
 }
 
-
-
+rule: 'Bot is running'
+Event.OngoingPlayer
+if (IsDummyBot(EventPlayer()))
+{
+    aiIsRunning = true;
+}
 
 rule: 'deltaTime update'
 Event.OngoingGlobal
@@ -305,6 +313,7 @@ if (aiIsRunning)
 rule: 'Reward damage'
 Event.OnDamageDealt
 Player.Slot0
+Team.Team1
 {
     deltaReward += EventDamage();
 }
@@ -312,6 +321,7 @@ Player.Slot0
 rule: 'Reward kill'
 Event.OnElimination
 Player.Slot0
+Team.Team1
 {
     deltaReward += 200;
 }
@@ -319,6 +329,7 @@ Player.Slot0
 rule: 'Reward damage'
 Event.OnDamageTaken
 Player.Slot0
+Team.Team1
 {
     deltaReward -= EventDamage();
 }
@@ -326,6 +337,7 @@ Player.Slot0
 rule: 'Reward damage'
 Event.OnDeath
 Player.Slot0
+Team.Team1
 {
     deltaReward -= EventDamage();
 }
