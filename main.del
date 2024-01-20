@@ -211,7 +211,7 @@ if (false)
 
     //get the values of every possible state/action
     for (define i! = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
-        for (define j! = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
+        for (define j! = -choiceMaxSteps; j <= choiceMaxSteps; j++) {
             define position = NearestWalkablePosition(WorldVectorOf(Vector(0,0,0), EventPlayer(), LocalVector.RotationAndTranslation) + 
                                                       Vector(choiceMaxSteps * choiceStepSize, 0, choiceMaxSteps * choiceStepSize));
             define input = getInputs(position);
@@ -252,7 +252,7 @@ if (false)
         StartFacing(EventPlayer(), choiceTargets[actionIndex], 2, Relative.ToWorld, FacingRev.None);
     }
     else {
-        StartFacing(EventPlayer(), FacingDirectionOf(EventPlayer()), 2, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
+        StartFacing(EventPlayer(), ThrottleOf(EventPlayer()), 2, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
     }
 
     pastInputs = Append(pastInputs, choiceInputs[actionIndex]);
