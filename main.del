@@ -3,11 +3,14 @@
 import 'pathfinder.del';
 
 globalvar define e = 2.718281828;
-playervar define reward = 0;
+playervar define deltaReward = 0;
 globalvar define choiceMaxSteps = 3;
 globalvar define choiceStepSize = 6;
-
-playervar define targetPos;
+globalvar define deltaTime = 0;
+globalvar define pastInputs = [];
+globalvar define pastInputTimes = [];
+globalvar define pastInputRewards = [];
+globalvar define aiIsRunning = false;
 playervar define aimTarget;
 
 class NeuralNetwork {
@@ -197,6 +200,7 @@ Number sumArray(define array) {
 rule: 'AI Loop'
 Event.OngoingPlayer
 Player.Slot0
+Team.Team1
 if (false)
 {
     define choicePositions = [];
@@ -228,47 +232,102 @@ if (false)
     define sumValues = sumArray(positiveValues);
     define probability = 0;
     define rand = RandomReal(0, 1);
-    define i = -1;
+    define actionIndex = -1;
     while (probability < rand) {
-        i++;
-        probability += positiveValues[i] / sumValues;
+        actionIndex++;
+        probability += positiveValues[actionIndex] / sumValues;
     }
+    Wait(0.016);
+
 
     //todo: aim at target, move towards position, add inputs to the tracky thing (you know what i mean)
     //the big 3 todos, while i'm here: inputs, pathfinding and tracky thing (as listed above)
 
+    handleBackprop();
+    
+    //set enemy and position targets
+    pfDestination = choicePositions[actionIndex];
+    if (choiceTargets[actionIndex] != null) {
+        StartFacing(EventPlayer(), choiceTargets[actionIndex], 2, Relative.ToWorld, FacingRev.None);
+    }
+    else {
+        StartFacing(EventPlayer(), FacingDirectionOf(EventPlayer()), 2, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
+    }
 
+    pastInputs = Append(pastInputs, choiceInputs[actionIndex]);
+    pastInputTimes = Append(pastInputTimes, 0);
+    pastInputRewards = Append(pastInputRewards, 0);
     //end rule, run again next tick
     Wait(0.016);
     Loop();
+}
+
+void handleBackprop() {
+    define indexesToRemove = [];
+
+    //for each input
+    for (define i = 0; i < CountOf(pastInputs); i++) {
+        pastInputTimes[i] += deltaTime;
+
+        //add reward to the input, where 0.9 is the discount rate
+        pastInputRewards[i] += deltaReward * RaiseToPower(0.9, pastInputTimes[i]);
+
+        //if the input was made more than 30 secs ago, backpropagate using the value accumulated since then
+        if (pastInputTimes[i] >= 30) {
+            targetNetwork.backPropagate(pastInputs[i], pastInputRewards[i]);
+            indexesToRemove = Append(indexesToRemove, i);
+            Wait(0.016);
+        }
+    }
+
+    //remove the backpropagated inputs
+    for (define i = 0; i < CountOf(indexesToRemove); i++) {
+        pastInputs = RemoveFromArrayAtIndex(pastInputs, indexesToRemove[i]);
+        pastInputTimes = RemoveFromArrayAtIndex(pastInputTimes, indexesToRemove[i]);
+        pastInputRewards = RemoveFromArrayAtIndex(pastInputRewards, indexesToRemove[i]);
+    }
+
+    deltaTime = 0;
+    deltaReward = 0;
+}
+
+
+
+
+rule: 'deltaTime update'
+Event.OngoingGlobal
+if (aiIsRunning)
+{
+    deltaTime += 0.01666;
+    Wait(0.01666);
 }
 
 rule: 'Reward damage'
 Event.OnDamageDealt
 Player.Slot0
 {
-    reward += EventDamage();
+    deltaReward += EventDamage();
 }
 
 rule: 'Reward kill'
 Event.OnElimination
 Player.Slot0
 {
-    reward += 200;
+    deltaReward += 200;
 }
 
 rule: 'Reward damage'
 Event.OnDamageTaken
 Player.Slot0
 {
-    reward -= EventDamage();
+    deltaReward -= EventDamage();
 }
 
 rule: 'Reward damage'
 Event.OnDeath
 Player.Slot0
 {
-    reward -= EventDamage();
+    deltaReward -= EventDamage();
 }
 
 rule: 'place heals'
