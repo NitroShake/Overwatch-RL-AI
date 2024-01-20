@@ -11,7 +11,7 @@ globalvar define pastInputs = [];
 globalvar define pastInputTimes = [];
 globalvar define pastInputRewards = [];
 globalvar define aiIsRunning = false;
-playervar define aimTarget;
+playervar define aimTarget = null;
 
 class NeuralNetwork {
     define learningRate = 0.01;
@@ -171,7 +171,7 @@ Team.Team1
 
 //TODO: make this function do literally anything, returning an array [inputs, [extraInputs1, extraInputs2, etc.], targets]
 Number[] getInputs(define position) {
-    define enemiesInRadius = PlayersWithinRadius(position, 50, Team.All, RadiusLOS.SurfacesAndAllBarriers);
+    define enemiesInRadius = PlayersWithinRadius(position, 50, Team.All, RadiusLOS.SurfacesAndEnemyBarriers);
     define inputs = [];
     define extraInputs = [];
     return inputs;
@@ -219,7 +219,7 @@ if (false)
                 choicePositions = Append(choicePositions, position);
                 choiceInputs = Append(choiceInputs, Append(input[0], input[1][k]));
             }
-            choiceTargets = Append(choiceTargets, [input[2]]);
+            choiceTargets = Append(choiceTargets, input[2]);
             define extraInputs = input[1];
             input = input[0];
             define values = targetNetwork.optimisedFeedForward(input, extraInputs);
@@ -248,8 +248,9 @@ if (false)
     
     //set enemy and position targets
     pfDestination = choicePositions[actionIndex];
-    if (choiceTargets[actionIndex] != null) {
-        StartFacing(EventPlayer(), choiceTargets[actionIndex], 2, Relative.ToWorld, FacingRev.None);
+    aimTarget = choiceTargets[actionIndex];
+    if (aimTarget != null) {
+        StartFacing(EventPlayer(), aimTarget, 2, Relative.ToWorld, FacingRev.None);
     }
     else {
         StartFacing(EventPlayer(), ThrottleOf(EventPlayer()), 2, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
@@ -300,6 +301,29 @@ Event.OngoingPlayer
 if (IsDummyBot(EventPlayer()))
 {
     aiIsRunning = true;
+}
+
+rule: 'Bot start shooting'
+Event.OngoingPlayer
+if (IsDummyBot(EventPlayer()) && aimTarget != null && IsInLineOfSight(EventPlayer(), aimTarget, BarrierLOS.EnemyBarriersBlock))
+{
+    StopHoldingButton(EventPlayer(), Button.Ability1);
+    StartHoldingButton(EventPlayer(), Button.PrimaryFire);
+}
+
+rule: 'Bot stop shooting'
+Event.OngoingPlayer
+if (IsDummyBot(EventPlayer()) && aimTarget == null)
+{
+    StopHoldingButton(EventPlayer(), Button.PrimaryFire);
+    StartHoldingButton(EventPlayer(), Button.Ability1);
+}
+
+rule: 'Bot fire rocket'
+Event.OngoingPlayer
+if (IsDummyBot(EventPlayer()) && aimTarget != null && AbilityCooldown(EventPlayer(), Button.SecondaryFire) == 0)
+{
+    PressButton(EventPlayer(), Button.SecondaryFire);
 }
 
 rule: 'deltaTime update'
