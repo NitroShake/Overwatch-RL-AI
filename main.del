@@ -296,10 +296,6 @@ if (false)
     }
     Wait(0.016);
 
-
-    //todo: aim at target, move towards position, add inputs to the tracky thing (you know what i mean)
-    //the big 3 todos, while i'm here: inputs, pathfinding and tracky thing (as listed above)
-
     handleBackprop();
     
     //set enemy and position targets
@@ -318,10 +314,9 @@ if (false)
     //end rule, run again next tick
     Wait(0.016);
     //todo: if aiIsRunning = true
+    //related todo: make aiIsRunning false once the first round is over (only one round will be simulated per match)
     Loop();
 }
-
-//todo: make aiIsRunning false once the first round is over (only one round will be simulated per match)
 
 void handleBackprop() {
     define indexesToRemove = [];
