@@ -276,19 +276,29 @@ if (false)
     //get the values of every possible state/action
     for (define i! = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
         for (define j! = -choiceMaxSteps; j <= choiceMaxSteps; j++) {
-            define position = NearestWalkablePosition(PositionOf(EventPlayer()) + 
-                                Vector(i * choiceStepSize, 0, j * choiceStepSize));
-            define input = getInputs(position);
-            for (define k = 0; k < CountOf(input[1]); k++) {
-                choicePositions = Append(choicePositions, position);
-                choiceInputs = Append(choiceInputs, Append(input[0], input[1][k]));
+            define positions = [NearestWalkablePosition(PositionOf(EventPlayer()) + 
+                                Vector(i * choiceStepSize, 0, j * choiceStepSize))];
+            for (define k! = -1; k <= 1; k += 2) {
+                define potentialPosition = NearestWalkablePosition(PositionOf(EventPlayer()) + 
+                                            Vector(i * choiceStepSize, k * 4, j * choiceStepSize));
+                if (AbsoluteValue(positions[0].Y - potentialPosition.Y) >= 4) {
+                    positions = Append(positions, potentialPosition);
+                }
             }
-            choiceTargets = Append(choiceTargets, input[2]);
-            define extraInputs = input[1];
-            input = input[0];
-            define values = optimisedFeedForward(input, extraInputs);
-            choiceValues = Append(choiceValues, [values]);
-            Wait(0.016);
+
+            for (define posI! = 0; posI < CountOf(positions); posI++) {
+                define input = getInputs(positions[posI]);
+                for (define k = 0; k < CountOf(input[1]); k++) {
+                    choicePositions = Append(choicePositions, positions[posI]);
+                    choiceInputs = Append(choiceInputs, Append(input[0], input[1][k]));
+                }
+                choiceTargets = Append(choiceTargets, input[2]);
+                define extraInputs = input[1];
+                input = input[0];
+                define values = optimisedFeedForward(input, extraInputs);
+                choiceValues = Append(choiceValues, [values]);
+                Wait(0.016);
+            }
         }
     }
 

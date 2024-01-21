@@ -1,0 +1,9 @@
+rule: 'test'
+Event.OngoingPlayer
+{
+    CreateHudText(EventPlayer(), NearestWalkablePosition(EventPlayer()), NearestWalkablePosition(PositionOf(EventPlayer()) + Vector(0, 4, 0)),
+    AbsoluteValue(NearestWalkablePosition(EventPlayer()).Y - NearestWalkablePosition(PositionOf(EventPlayer()) + Vector(0, 4, 0)).Y) >= 4);
+
+        CreateHudText(EventPlayer(), NearestWalkablePosition(EventPlayer()).Y - NearestWalkablePosition(PositionOf(EventPlayer()) + Vector(0, -4, 0)).Y >= 4, NearestWalkablePosition(PositionOf(EventPlayer()) + Vector(0, -4, 0)),
+    DistanceBetween(NearestWalkablePosition(EventPlayer()), NearestWalkablePosition(PositionOf(EventPlayer()) + Vector(0, -4, 0))) >= 4);
+}
