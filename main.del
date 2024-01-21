@@ -355,6 +355,19 @@ void handleBackprop() {
 rule: 'Log results at end of match'
 if (MatchRound() == 2)
 {
+    w1Import1 = [];
+    w1Import2 = [];
+    w2Import = [];
+
+    //Prepare vars for export/import
+    //TODO: ADJUST FOR ACTUAL NODE/WEIGHT COUNT
+    for (define i = 0; i < 40; i++)  {
+        w1Import1 = Append(w1Import1, [w1[i]]);
+    }
+    for (define i = 40; i < 80; i++)  {
+        w1Import2 = Append(w1Import1, [w1[i]]);
+    }
+    w2Import = w2;
 
     LogToInspector("Team 1 score: {0}".Format([TeamScore(Team.Team1)]));
     SetMatchTime(999);
