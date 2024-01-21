@@ -14,6 +14,55 @@ globalvar define aiIsRunning = false;
 playervar define aimTarget = null;
 playervar define dmgPercent = 30; //dmg multiplier (in percent) for primary fire (compensating for near-perfect aim)
 
+globalvar define w1Import1;
+globalvar define w1Import2;
+globalvar define w2Import;
+
+rule: '>>> Import Weights Part 1 (paste them here!) <<<'
+{
+    
+}
+
+rule: '>>> Import Weights Part 2 (paste them here!) <<<'
+{
+    
+}
+
+rule: '>>> Import Weights Part 3 (paste them here!) <<<'
+{
+    
+}
+
+rule: 'init weights'
+{
+    Wait(5);
+    w1 = [];
+    w2 = [];
+    if (w1Import1 != null) {
+        w1 = Append(w1, w1Import1);
+        w1 = Append(w1, w1Import2);
+        w2 = w2Import;
+    }
+    else {
+        //TODO: MAKE SURE THE ARRAY IS ACTUALLY THE SIZE OF THE WEIGHTS
+        for (define i = 0; i < 80; i++) {
+            define array = [];
+            for (define j = 0; j < 60; j++) {
+                array = Append(array, RandomReal(0, 1));
+            }   
+            w1 = Append(w1, [array]);
+            Wait(0.016);
+        }
+
+        for (define i = 0; i < 60; i++) {
+            w2 = Append(w2, RandomReal(0, 1));
+            Wait(0.016);
+        }
+    }
+}
+
+
+
 //===============================================================================================================
 //NEURAL NETWORK BEGINS HERE
 //this could be bundled into a class, but classes are merely an abstraction that place their instance's vars into a shared array
@@ -307,8 +356,7 @@ rule: 'Log results at end of match'
 if (MatchRound() == 2)
 {
 
-
-    
+    LogToInspector("Team 1 score: {0}".Format([TeamScore(Team.Team1)]));
     SetMatchTime(999);
     SetSlowMotion(10);
 }
