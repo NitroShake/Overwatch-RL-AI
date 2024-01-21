@@ -1,0 +1,45 @@
+playervar define dmgDealtStat = 0;
+playervar define healingStat = 0;
+playervar define eliminationStat = 0;
+playervar define deathStat = 0;
+playervar define rocketDmgStat = 0;
+playervar define ultimateDmgStat = 0;
+
+rule: 'interact to charge ult'
+Event.OngoingPlayer
+if (IsButtonHeld(EventPlayer(), Button.Interact))
+{
+    SetUltimateCharge(EventPlayer(), 100);
+}
+
+rule: 'Bot track damage'
+Event.OnDamageDealt
+Player.Soldier76
+{
+    dmgDealtStat += EventDamage();
+    if (EventAbility() == Button.SecondaryFire) {
+        rocketDmgStat += EventDamage();
+    }
+    else if (EventAbility() == Button.Ultimate) {
+        ultimateDmgStat += EventDamage();
+    }
+}
+
+rule: 'Bot track heal'
+Event.OnHealingDealt
+Player.Soldier76
+{
+    healingStat += EventHealing();
+}
+rule: 'Bot track elim'
+Event.OnElimination
+Player.Soldier76
+{
+    eliminationStat += 1;
+}
+rule: 'Bot track heal'
+Event.OnDeath
+Player.Soldier76
+{
+    deathStat += 1;
+}
