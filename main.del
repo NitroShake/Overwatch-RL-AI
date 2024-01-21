@@ -276,10 +276,10 @@ if (false)
     //get the values of every possible state/action
     for (define i! = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
         for (define j! = -choiceMaxSteps; j <= choiceMaxSteps; j++) {
-            define position = NearestWalkablePosition(WorldVectorOf(Vector(0,0,0), EventPlayer(), LocalVector.RotationAndTranslation) + 
-                                                      Vector(choiceMaxSteps * choiceStepSize, 0, choiceMaxSteps * choiceStepSize));
+            define position = NearestWalkablePosition(PositionOf(EventPlayer()) + 
+                                Vector(i * choiceStepSize, 0, j * choiceStepSize));
             define input = getInputs(position);
-            for (define k = 0; k < CountOf(input[1]); i++) {
+            for (define k = 0; k < CountOf(input[1]); k++) {
                 choicePositions = Append(choicePositions, position);
                 choiceInputs = Append(choiceInputs, Append(input[0], input[1][k]));
             }
