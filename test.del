@@ -1,0 +1,95 @@
+globalvar define test = [];
+
+//THE AMOUNT OF TESTEXPORTS ARE NOT REQUIRED - TESTING SHOWS THE LIMITATIONS ARE BASED ON RULE MAX SIZE RATHER THAN VAR - SPLIT INTO LIKE 4 ONLY PLEASE
+globalvar define testExport1 = [];
+globalvar define testExport2 = [];
+globalvar define testExport3 = [];
+globalvar define testExport4 = [];
+globalvar define testExport5 = [];
+globalvar define testExport6 = [];
+globalvar define testExport7 = [];
+globalvar define testExport8 = [];
+globalvar define testExport9 = [];
+globalvar define testExport10 = [];
+globalvar define testExport11 = [];
+globalvar define testExport12 = [];
+globalvar define testExport13 = [];
+globalvar define testExport14 = [];
+globalvar define testExport15 = [];
+globalvar define testExport16 = [];
+
+globalvar define sussy = [[4, 4, 4]];
+
+
+rule: 'test'
+{
+    sussy = Append(sussy, [[3, 3, 3]]);
+    for (define i = 0; i < 80; i++) {
+        define array = [];
+        for (define j = 0; j < 60; j++) {
+            array = Append(array, RandomReal(0, 1));
+        }   
+        test = Append(test, [array]);
+        Wait(0.016);
+    }
+
+
+    for (define i = 0; i < 5; i++)  {
+        define sussy2 = test[i];
+        testExport1 = Append(testExport1, [sussy2]);
+    }
+    Wait(0.016);
+    for (define i = 5; i < 10; i++)  {
+        testExport2 = Append(testExport2, [test[i]]);
+    }
+    Wait(0.016);
+    for (define i = 10; i < 15; i++)  {
+        testExport3 = Append(testExport3, [test[i]]);
+    }
+    Wait(0.016);
+    for (define i = 15; i < 20; i++)  {
+        testExport4 = Append(testExport4, [test[i]]);
+    }
+        for (define i = 20; i < 25; i++)  {
+        testExport5 = Append(testExport4, [test[i]]);
+    }
+        for (define i = 25; i < 30; i++)  {
+        testExport6 = Append(testExport4, [test[i]]);
+    }
+    Wait(0.016);
+        for (define i = 30; i < 35; i++)  {
+        testExport7 = Append(testExport4, [test[i]]);
+    }
+        for (define i = 35; i < 40; i++)  {
+        testExport8 = Append(testExport4, [test[i]]);
+    }
+        for (define i = 40; i < 45; i++)  {
+        define sussy2 = test[i];
+        testExport9 = Append(testExport1, [sussy2]);
+    }
+    Wait(0.016);
+    for (define i = 45; i < 50; i++)  {
+        testExport10 = Append(testExport2, [test[i]]);
+    }
+    Wait(0.016);
+    for (define i = 50; i < 55; i++)  {
+        testExport11 = Append(testExport3, [test[i]]);
+    }
+    Wait(0.016);
+    for (define i = 55; i < 60; i++)  {
+        testExport12 = Append(testExport4, [test[i]]);
+    }
+        for (define i = 60; i < 65; i++)  {
+        testExport13 = Append(testExport4, [test[i]]);
+    }
+        for (define i = 65; i < 70; i++)  {
+        testExport14 = Append(testExport4, [test[i]]);
+    }
+    Wait(0.016);
+        for (define i = 70; i < 75; i++)  {
+        testExport15 = Append(testExport4, [test[i]]);
+    }
+        for (define i = 75; i < 80; i++)  {
+        testExport16 = Append(testExport4, [test[i]]);
+    }
+}
