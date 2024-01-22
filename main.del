@@ -234,6 +234,9 @@ Team.Team1
 }
 
 //TODO: make this function do literally anything, returning an array [inputs, [extraInputs1, extraInputs2, etc.], targets]
+//per teammate/enemy: distance, vertical distance, health, cooldown 1, 2, ult charge
+//self: Health, ammo, cooldown rocket/heals, is using ultimate, potential healing?
+//target: Health, distance, target hero thingy (5x bools)
 Number[] getInputs(define position) {
     define enemiesInRadius = PlayersWithinRadius(position, 50, Team.All, RadiusLOS.SurfacesAndEnemyBarriers);
     define inputs = [];
