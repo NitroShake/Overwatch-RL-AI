@@ -268,108 +268,120 @@ Player.Slot0
 Team.Team1
 if (false)
 {
-    define choicePositions = [];
-    define choiceTargets = [];
-    define choiceInputs = [];
-    define choiceValues = [];
+    if (MatchRound() < 2 && IsAlive(EventPlayer())) {
+        define choicePositions = [];
+        define choiceTargets = [];
+        define choiceInputs = [];
+        define choiceValues = [];
 
-    //get the values of every possible state/action
-    for (define i! = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
-        for (define j! = -choiceMaxSteps; j <= choiceMaxSteps; j++) {
-            define positions = [NearestWalkablePosition(PositionOf(EventPlayer()) + 
-                                Vector(i * choiceStepSize, 0, j * choiceStepSize))];
-            for (define k! = -1; k <= 1; k += 2) {
-                define potentialPosition = NearestWalkablePosition(PositionOf(EventPlayer()) + 
-                                            Vector(i * choiceStepSize, k * 4, j * choiceStepSize));
-                if (AbsoluteValue(positions[0].Y - potentialPosition.Y) >= 4) {
-                    positions = Append(positions, potentialPosition);
+        //get the values of every possible state/action
+        for (define i! = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
+            for (define j! = -choiceMaxSteps; j <= choiceMaxSteps; j++) {
+                define positions = [NearestWalkablePosition(PositionOf(EventPlayer()) + 
+                                    Vector(i * choiceStepSize, 0, j * choiceStepSize))];
+                for (define k! = -1; k <= 1; k += 2) {
+                    define potentialPosition = NearestWalkablePosition(PositionOf(EventPlayer()) + 
+                                                Vector(i * choiceStepSize, k * 4, j * choiceStepSize));
+                    if (AbsoluteValue(positions[0].Y - potentialPosition.Y) >= 4) {
+                        positions = Append(positions, potentialPosition);
+                    }
+                }
+
+                for (define posI! = 0; posI < CountOf(positions); posI++) {
+                    define input = getInputs(positions[posI]);
+                    for (define k = 0; k < CountOf(input[1]); k++) {
+                        choicePositions = Append(choicePositions, positions[posI]);
+                        choiceInputs = Append(choiceInputs, Append(input[0], input[1][k]));
+                    }
+                    choiceTargets = Append(choiceTargets, input[2]);
+                    define extraInputs = input[1];
+                    input = input[0];
+                    define values = optimisedFeedForward(input, extraInputs);
+                    choiceValues = Append(choiceValues, [values]);
+                    Wait(0.016);
                 }
             }
+        }
 
-            for (define posI! = 0; posI < CountOf(positions); posI++) {
-                define input = getInputs(positions[posI]);
-                for (define k = 0; k < CountOf(input[1]); k++) {
-                    choicePositions = Append(choicePositions, positions[posI]);
-                    choiceInputs = Append(choiceInputs, Append(input[0], input[1][k]));
-                }
-                choiceTargets = Append(choiceTargets, input[2]);
-                define extraInputs = input[1];
-                input = input[0];
-                define values = optimisedFeedForward(input, extraInputs);
-                choiceValues = Append(choiceValues, [values]);
+        //get the index of the state-action to be chosen.
+        define positiveValues = numsToAllPositiveNums(choiceValues);
+        define sumValues = sumArray(positiveValues);
+        define probability = 0;
+        define rand = RandomReal(0, 1);
+        define actionIndex = -1;
+        while (probability < rand) {
+            actionIndex++;
+            probability += positiveValues[actionIndex] / sumValues;
+        }
+        Wait(0.016);
+
+        handleBackprop(30);
+        
+        //set enemy and position targets
+        pfDestination = choicePositions[actionIndex];
+        aimTarget = choiceTargets[actionIndex];
+        if (aimTarget != null) {
+            StartFacing(EventPlayer(), aimTarget, 2, Relative.ToWorld, FacingRev.None);
+        }
+        else {
+            StartFacing(EventPlayer(), ThrottleOf(EventPlayer()), 2, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
+        }
+
+        pastInputs = Append(pastInputs, choiceInputs[actionIndex]);
+        pastInputTimes = Append(pastInputTimes, 0);
+        pastInputRewards = Append(pastInputRewards, 0);
+        //end rule, run again next tick
+        Wait(0.016);
+        //todo: if aiIsRunning = true
+        //related todo: make aiIsRunning false once the first round is over (only one round will be simulated per match)
+        Loop();
+
+    } 
+    //else if death
+    else if (MatchRound() < 2 && !IsAlive(EventPlayer())) {
+        //backprop every input made leading up to death
+        handleBackprop(0);
+    }
+    //else (meaning first round has finished, so the simulation should end)
+    else {
+        handleBackprop(0);
+        finish();
+    }
+}
+
+void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropagation' {
+    if (CountOf(pastInputs) > 0) {
+        define indexesToRemove = [];
+
+        //for each input
+        for (define i! = 0; i < CountOf(pastInputs); i++) {
+            pastInputTimes[i] += deltaTime;
+
+            //add reward to the input, where 0.9 is the discount rate
+            pastInputRewards[i] += deltaReward * RaiseToPower(0.9, pastInputTimes[i]);
+
+            //if the input was made more than inputLifespan secs ago, backpropagate using the value accumulated since then
+            if (pastInputTimes[i] >= inputLifespan) {
+                backPropagate(pastInputs[i], pastInputRewards[i]);
+                indexesToRemove = Append(indexesToRemove, i);
                 Wait(0.016);
             }
         }
-    }
 
-    //get the index of the state-action to be chosen.
-    define positiveValues = numsToAllPositiveNums(choiceValues);
-    define sumValues = sumArray(positiveValues);
-    define probability = 0;
-    define rand = RandomReal(0, 1);
-    define actionIndex = -1;
-    while (probability < rand) {
-        actionIndex++;
-        probability += positiveValues[actionIndex] / sumValues;
-    }
-    Wait(0.016);
-
-    handleBackprop();
-    
-    //set enemy and position targets
-    pfDestination = choicePositions[actionIndex];
-    aimTarget = choiceTargets[actionIndex];
-    if (aimTarget != null) {
-        StartFacing(EventPlayer(), aimTarget, 2, Relative.ToWorld, FacingRev.None);
-    }
-    else {
-        StartFacing(EventPlayer(), ThrottleOf(EventPlayer()), 2, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
-    }
-
-    pastInputs = Append(pastInputs, choiceInputs[actionIndex]);
-    pastInputTimes = Append(pastInputTimes, 0);
-    pastInputRewards = Append(pastInputRewards, 0);
-    //end rule, run again next tick
-    Wait(0.016);
-    //todo: if aiIsRunning = true
-    //related todo: make aiIsRunning false once the first round is over (only one round will be simulated per match)
-    Loop();
-}
-
-void handleBackprop() {
-    define indexesToRemove = [];
-
-    //for each input
-    for (define i! = 0; i < CountOf(pastInputs); i++) {
-        pastInputTimes[i] += deltaTime;
-
-        //add reward to the input, where 0.9 is the discount rate
-        pastInputRewards[i] += deltaReward * RaiseToPower(0.9, pastInputTimes[i]);
-
-        //if the input was made more than 30 secs ago, backpropagate using the value accumulated since then
-        if (pastInputTimes[i] >= 30) {
-            backPropagate(pastInputs[i], pastInputRewards[i]);
-            indexesToRemove = Append(indexesToRemove, i);
-            Wait(0.016);
+        //remove the backpropagated inputs
+        for (define i! = 0; i < CountOf(indexesToRemove); i++) {
+            pastInputs = RemoveFromArrayAtIndex(pastInputs, indexesToRemove[i]);
+            pastInputTimes = RemoveFromArrayAtIndex(pastInputTimes, indexesToRemove[i]);
+            pastInputRewards = RemoveFromArrayAtIndex(pastInputRewards, indexesToRemove[i]);
         }
-    }
 
-    //remove the backpropagated inputs
-    for (define i! = 0; i < CountOf(indexesToRemove); i++) {
-        pastInputs = RemoveFromArrayAtIndex(pastInputs, indexesToRemove[i]);
-        pastInputTimes = RemoveFromArrayAtIndex(pastInputTimes, indexesToRemove[i]);
-        pastInputRewards = RemoveFromArrayAtIndex(pastInputRewards, indexesToRemove[i]);
+        deltaTime = 0;
+        deltaReward = 0;
     }
-
-    deltaTime = 0;
-    deltaReward = 0;
 }
 
-rule: 'Log results at end of match'
-if (MatchRound() == 2)
+void finish() 'Log results at end of match'
 {
-
-
     //Prepare vars for export/import
     w1Import1 = [];
     w1Import2 = [];
@@ -396,6 +408,7 @@ if (MatchRound() == 2)
         enemySoldier.deathStat, enemySoldier.ultimateDmgStat, enemySoldier.rocketDmgStat
     ]));
     LogToInspector("Team 1 score: {0}".Format([TeamScore(Team.Team1)]));
+    DestroyAllDummyBots();
     SetMatchTime(999);
     SetSlowMotion(10);
 }
@@ -457,7 +470,7 @@ Player.Soldier76
 {
     eliminationStat += 1;
 }
-rule: 'Bot track heal'
+rule: 'Bot track death'
 Event.OnDeath
 Player.Soldier76
 {
