@@ -12,7 +12,17 @@ globalvar define pastInputTimes = [];
 globalvar define pastInputRewards = [];
 globalvar define aiIsRunning = false;
 playervar define aimTarget = null;
-playervar define dmgPercent = 30; //dmg multiplier (in percent) for primary fire (compensating for near-perfect aim)
+playervar define dmgPercent; //dmg multiplier (in percent) for primary fire (compensating for near-perfect aim)
+rule: 'assignDmgPercent'
+Event.OngoingPlayer
+{
+    if (IsDummyBot(EventPlayer())) {
+        dmgPercent = 30;
+    } else {
+        dmgPercent = 100;
+    }
+}
+
 
 playervar define dmgDealtStat = 0;
 playervar define healingStat = 0;
@@ -511,6 +521,7 @@ if (aiIsRunning)
 {
     deltaTime += 0.01666;
     Wait(0.01666);
+    Loop();
 }
 
 rule: 'Reward damage'

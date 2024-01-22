@@ -355,3 +355,12 @@ rule: "Rule 17"
     CreateDummyBot(Hero.Soldier76, Team.Team1, -1, PositionOf(PlayersInSlot(0, Team.All)), Vector(0, 0, 0));
     LogToInspector('decompiled version :D');
 }
+
+rule: 'set Destination'
+Event.OngoingPlayer
+if (IsDummyBot(EventPlayer()))
+{
+    pfDestination = PositionOf(PlayersInSlot(0));
+    Wait(0.016);
+    Loop();
+}
