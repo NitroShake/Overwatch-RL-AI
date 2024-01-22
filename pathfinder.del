@@ -223,6 +223,12 @@ void pfProgressEventPlayer() "【PF Core Subroutine】☞ Progress event player"
     }
     # Pop the current path.
     ModifyVariable(pfPath, Operation.RemoveFromArrayByIndex, 0);
+    //Pop the next node if the one after is in LOS.
+    //if (CountOf(pfPath) > 0 && DistanceBetween(RayCastHitPosition(WorldVectorOf(Vector(0,0,0), EventPlayer(), LocalVector.RotationAndTranslation) + Vector(0,0.25,0),
+                            //pfLoadedMap_nodes[pfPath[0]], [], [], false), 
+                        //pfLoadedMap_nodes[pfPath[0]]) < 0.5) {
+        //ModifyVariable(pfPath, Operation.RemoveFromArrayByIndex, 0);  
+    //}
     # Update the current pathfind attributes.
     if (CountOf(pfPath) && FirstOf(pfPath) != -1)
     {
