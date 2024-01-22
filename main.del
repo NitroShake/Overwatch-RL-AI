@@ -290,6 +290,8 @@ if (false)
         //get the values of every possible state/action
         for (define i! = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
             for (define j! = -choiceMaxSteps; j <= choiceMaxSteps; j++) {
+                //todo: rework this so positions stay in their grid
+                //potential solution: get each position (up/middle/down), calculate if they're in their grid, and use the first correct one as a base for elevation changes
                 define positions = [NearestWalkablePosition(PositionOf(EventPlayer()) + 
                                     Vector(i * choiceStepSize, 0, j * choiceStepSize))];
                 for (define k! = -1; k <= 1; k += 2) {
