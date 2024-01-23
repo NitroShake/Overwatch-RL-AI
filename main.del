@@ -260,8 +260,17 @@ if (IsUsingAbility2(EventPlayer()))
 //get the health that could be recovered by ability
 Number getRecoverableHealth(define position) {
     if (IsUsingAbility2() && DistanceBetween(healingLocation, position) < 4) {
-        return MaxHealth(EventPlayer()) - Health(EventPlayer());
+        return (MaxHealth(EventPlayer()) - Health(EventPlayer())) / MaxHealth(EventPlayer());
+    } else {
+        return 0;
     }
+}
+
+enum BonusAction {
+    None,
+    Heal,
+    Sprint,
+    Ultimate
 }
 
 //TODO: make this function do literally anything, returning an array [inputs, [extraInputs1, extraInputs2, etc.], targets, bonusActions]
@@ -270,6 +279,7 @@ Number getRecoverableHealth(define position) {
 //target: Health, distance, target hero thingy (5x bools)
 
 //put extra input [targeting 1, 2, 3, 4, 5, sprinting, healthtogain, isusingultimate]
+//todo: review this, add objective inputs, and make the bot perform BonusActions
 Number[] getInputs(define position) {
     define inputs = [];
     define extraInputs = [];
@@ -283,25 +293,39 @@ Number[] getInputs(define position) {
     for (define i! = 0; i < CountOf(players); i++) {
         inputs = Append(inputs, Health(players[i]) / MaxHealth(players[i]));
         inputs = Append(inputs, IsInLineOfSight(position, players[i], BarrierLOS.EnemyBarriersBlock));
-        inputs = Append(inputs, DistanceBetween(position, players[i]));
-        inputs = Append(YOf(position) - YOf(PositionOf(players[i])));
-        inputs = Append(inputs, AbilityCooldown(players[i], Button.Ability1));
-        inputs = Append(inputs, AbilityCooldown(players[i], Button.Ability2));
-        inputs = Append(inputs, Max(UltimateChargePercent(players[i]) / 100, IsUsingUltimate()));
+        inputs = Append(inputs, DistanceBetween(position, players[i]) / 50);
+        inputs = Append(YOf(position) - YOf(PositionOf(players[i])) / 10);
+        inputs = Append(inputs, AbilityCooldown(players[i], Button.Ability1) / 10);
+        inputs = Append(inputs, AbilityCooldown(players[i], Button.Ability2) / 10);
+        inputs = Append(inputs, Max(UltimateChargePercent(players[i]) / 100, IsUsingUltimate(players[i])));
     }
-    
-    define extraInput = [];
     //sprinting to location
     extraInputs = Append(extraInputs, [[0, 0, 0, 0, 0, 1, getRecoverableHealth(position), 0]]);
-    
-    //todos:
-    //foreach enemy in los: target them
-    //if ability 2 is charged, check its value
-    //if ultimate is charged, check it
+    targets = Append(targets, null);
+    bonusActions = Append(bonusActions, BonusAction.Sprint);
 
+    //heal
+    if (AbilityCooldown(EventPlayer(), Button.Ability2) == 0) {
+        extraInputs = Append(extraInputs, [[0, 0, 0, 0, 0, 0, (MaxHealth(EventPlayer()) - Health(EventPlayer())) / MaxHealth(EventPlayer()), 0]]);
+        targets = Append(targets, null);
+        bonusActions = Append(bonusActions, BonusAction.Heal);
+    }
+
+    //use ult
+    if (UltimateChargePercent(EventPlayer()) == 100) {
+        extraInputs = Append(extraInputs, [[0, 0, 0, 0, 0, 0, getRecoverableHealth(position), 1]]);
+        targets = Append(targets, null);
+        bonusActions = Append(bonusActions, BonusAction.Ultimate);
+    }
+
+    //targeting each players in LOS
     define enemiesInRadius = PlayersWithinRadius(position, 50, Team.Team2, RadiusLOS.SurfacesAndEnemyBarriers);
     for (define i! = 0; i < enemiesInRadius; i++) {
-        
+        define extraInput = [0, 0, 0, 0, 0, 0, getRecoverableHealth(position), IsUsingUltimate(EventPlayer())];
+        extraInput[SlotOf(enemiesInRadius[i])] = 1;
+        extraInputs = Append(extraInputs, extraInput);
+        targets = Append(targets, enemiesInRadius[i]);
+        bonusActions = Append(bonusActions, BonusAction.None);
     }
 
     return [inputs, extraInputs, targets, bonusActions];
