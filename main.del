@@ -23,14 +23,14 @@ Event.OngoingPlayer
     }
 }
 
-
+globalvar define players = [];
 playervar define dmgDealtStat = 0;
 playervar define healingStat = 0;
 playervar define eliminationStat = 0;
 playervar define deathStat = 0;
 playervar define rocketDmgStat = 0;
 playervar define ultimateDmgStat = 0;
-
+playervar define healingLocation;
 
 globalvar define w1Import1;
 globalvar define w1Import2;
@@ -200,6 +200,13 @@ void backPropagate(define inputs, define actualValue) 'Back-propagation'
 
 rule: 'Match Init'
 {
+    players = [];
+    for (define i = 1; i < 5; i++) {
+        players = Append(players, PlayersInSlot(i, Team.Team1));
+    }
+    for (define i = 0; i < 5; i++) {
+        players = Append(players, PlayersInSlot(i, Team.Team2));
+    }
     CreateHudText(AllPlayers(), '{0} {1} {2}'.Format([ServerLoad(), ServerLoadAverage(), ServerLoadPeak()]),
     null, null, Location.Left, 1, Color.White, Color.Aqua, Color.Aqua, HudTextRev.String, Spectators.VisibleAlways);
     //these two are crucial for performance - server crashes at regular speed, and
@@ -214,7 +221,7 @@ rule: 'Match Init'
     SetMatchTime(0);
 
     //spawn dummy next to slot 1 (teammate)
-    CreateDummyBot(Hero.Soldier76, Team.Team1, 0, PlayersInSlot(1)[0]);
+    CreateDummyBot(Hero.Soldier76, Team.Team1, 0, PlayersInSlot(1, Team.Team1)[0]);
 }
 
 rule: 'AI Init'
@@ -243,15 +250,61 @@ Team.Team1
     LogToInspector(optimisedFeedForward([0.36, -1], [[0.4]]));
 }
 
-//TODO: make this function do literally anything, returning an array [inputs, [extraInputs1, extraInputs2, etc.], targets]
+rule: 'My Rule'
+Event.OngoingPlayer
+if (IsUsingAbility2(EventPlayer()))
+{
+    healingLocation = PositionOf(EventPlayer());
+}
+
+//get the health that could be recovered by ability
+Number getRecoverableHealth(define position) {
+    if (IsUsingAbility2() && DistanceBetween(healingLocation, position) < 4) {
+        return MaxHealth(EventPlayer()) - Health(EventPlayer());
+    }
+}
+
+//TODO: make this function do literally anything, returning an array [inputs, [extraInputs1, extraInputs2, etc.], targets, bonusActions]
 //per teammate/enemy: distance, vertical distance, health, cooldown 1, 2, ult charge
 //self: Health, ammo, cooldown rocket/heals, is using ultimate, potential healing?
 //target: Health, distance, target hero thingy (5x bools)
+
+//put extra input [targeting 1, 2, 3, 4, 5, sprinting, healthtogain, isusingultimate]
 Number[] getInputs(define position) {
-    define enemiesInRadius = PlayersWithinRadius(position, 50, Team.All, RadiusLOS.SurfacesAndEnemyBarriers);
     define inputs = [];
     define extraInputs = [];
-    return inputs;
+    define targets = [];
+    define bonusActions = [];
+    //set inputs
+    inputs = Append(inputs, [Health(EventPlayer()) / MaxHealth(EventPlayer()),
+                        Ammo(EventPlayer()) / MaxAmmo(EventPlayer()), 
+                        DistanceBetween(position, EventPlayer())]);
+    //todo: normalisation?? the one where you get the inputs between 0 and 1
+    for (define i! = 0; i < CountOf(players); i++) {
+        inputs = Append(inputs, Health(players[i]) / MaxHealth(players[i]));
+        inputs = Append(inputs, IsInLineOfSight(position, players[i], BarrierLOS.EnemyBarriersBlock));
+        inputs = Append(inputs, DistanceBetween(position, players[i]));
+        inputs = Append(YOf(position) - YOf(PositionOf(players[i])));
+        inputs = Append(inputs, AbilityCooldown(players[i], Button.Ability1));
+        inputs = Append(inputs, AbilityCooldown(players[i], Button.Ability2));
+        inputs = Append(inputs, Max(UltimateChargePercent(players[i]) / 100, IsUsingUltimate()));
+    }
+    
+    define extraInput = [];
+    //sprinting to location
+    extraInputs = Append(extraInputs, [[0, 0, 0, 0, 0, 1, getRecoverableHealth(position), 0]]);
+    
+    //todos:
+    //foreach enemy in los: target them
+    //if ability 2 is charged, check its value
+    //if ultimate is charged, check it
+
+    define enemiesInRadius = PlayersWithinRadius(position, 50, Team.Team2, RadiusLOS.SurfacesAndEnemyBarriers);
+    for (define i! = 0; i < enemiesInRadius; i++) {
+        
+    }
+
+    return [inputs, extraInputs, targets, bonusActions];
 }
 
 //adds numbers to array such that all values become non-negative.
@@ -336,10 +389,10 @@ if (false)
         pfDestination = choicePositions[actionIndex];
         aimTarget = choiceTargets[actionIndex];
         if (aimTarget != null) {
-            StartFacing(EventPlayer(), aimTarget, 2, Relative.ToWorld, FacingRev.None);
+            StartFacing(EventPlayer(), aimTarget, 5, Relative.ToWorld, FacingRev.None);
         }
         else {
-            StartFacing(EventPlayer(), ThrottleOf(EventPlayer()), 2, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
+            StartFacing(EventPlayer(), ThrottleOf(EventPlayer()), 5, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
         }
 
         pastInputs = Append(pastInputs, choiceInputs[actionIndex]);

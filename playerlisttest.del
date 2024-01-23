@@ -1,0 +1,19 @@
+rule: 'spawn dummy'
+{
+    LogToInspector(true * 2);
+    LogToInspector(PlayersInSlot(0, Team.Team1));
+    Wait(5);
+    CreateDummyBot(Hero.Soldier76, Team.Team1, 0, );
+    Wait(1);
+    define test1 = AllPlayers(Team.All);
+    define test2 = RemoveFromArray(test1, LastCreatedEntity());
+    define test3 = [];
+    for (define i! = 1; i < 5; i++) {
+        test3 = Append(test3, PlayersInSlot(i, Team.Team1));
+    }
+    for (define i! = 0; i < 5; i++) {
+        test3 = Append(test3, PlayersInSlot(i, Team.Team2));
+    }
+    LogToInspector(PlayersInSlot(0, Team.Team1));
+    LogToInspector(test3);
+}
