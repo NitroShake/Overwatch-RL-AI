@@ -297,7 +297,7 @@ Number[] getInputs(define position) {
     //set inputs
     inputs = Append(inputs, [Health(EventPlayer()) / MaxHealth(EventPlayer()),
                         Ammo(EventPlayer()) / MaxAmmo(EventPlayer()), 
-                        DistanceBetween(position, EventPlayer()),
+                        DistanceBetween(position, EventPlayer()) / 30,
                         DistanceBetween(ObjectivePosition(ObjectiveIndex()), EventPlayer())]);
     for (define i! = 0; i < CountOf(players); i++) {
         inputs = Append(inputs, Health(players[i]) / MaxHealth(players[i]));
@@ -378,15 +378,25 @@ if (false)
         //get the values of every possible state/action
         for (define i! = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
             for (define j! = -choiceMaxSteps; j <= choiceMaxSteps; j++) {
-                //todo: rework this so positions stay in their grid
-                //potential solution: get each position (up/middle/down), calculate if they're in their grid, and use the first correct one as a base for elevation changes
-                define positions = [NearestWalkablePosition(PositionOf(EventPlayer()) + 
-                                    Vector(i * choiceStepSize, 0, j * choiceStepSize))];
-                for (define k! = -1; k <= 1; k += 2) {
-                    define potentialPosition = NearestWalkablePosition(PositionOf(EventPlayer()) + 
-                                                Vector(i * choiceStepSize, k * 4, j * choiceStepSize));
-                    if (AbsoluteValue(positions[0].Y - potentialPosition.Y) >= 4) {
-                        positions = Append(positions, potentialPosition);
+                define positions = [];
+                for (define k! = -1; k <= 1; k++) {
+                    define basePos = PositionOf(EventPlayer()) + Vector(i * choiceStepSize, k * 6, j * choiceStepSize);
+                    define potentialPos = NearestWalkablePosition(basePos);
+                    if (CountOf(positions) == 0) {
+                        if (DistanceBetween(Vector(basePos.X, 0, basePos.Z),
+                                            Vector(potentialPos.X, 0, potentialPos.Z)) < choiceStepSize) {
+                            positions = Append(positions, potentialPos);
+                        }
+                    }  
+                    else if (CountOf(positions) == 1) {
+                        if (AbsoluteValue(YOf(positions[0]) - YOf(potentialPos)) >= 4) {
+                            positions = Append(positions, potentialPos);
+                        }
+                    }
+                    else if (CountOf(positions) == 2) {
+                        if (AbsoluteValue(YOf(positions[0]) - YOf(potentialPos)) >= 4 && AbsoluteValue(YOf(positions[1]) - YOf(potentialPos)) >= 4) {
+                            positions = Append(positions, potentialPos);
+                        }
                     }
                 }
 
