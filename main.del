@@ -10,8 +10,9 @@ globalvar define deltaTime = 0;
 globalvar define pastInputs = [];
 globalvar define pastInputTimes = [];
 globalvar define pastInputRewards = [];
-globalvar define aiIsRunning = false;
+globalvar define aiTime = 0;
 playervar define aimTarget = null;
+playervar define extraAction = null;
 playervar define dmgPercent; //dmg multiplier (in percent) for primary fire (compensating for near-perfect aim)
 rule: 'assignDmgPercent'
 Event.OngoingPlayer
@@ -224,6 +225,15 @@ rule: 'Match Init'
     CreateDummyBot(Hero.Soldier76, Team.Team1, 0, PlayersInSlot(1, Team.Team1)[0]);
 }
 
+rule: 'AI bot'
+Event.OngoingPlayer
+if (IsDummyBot(EventPlayer()))
+{
+    aiTime += 0.016666;
+    Wait(0.016);
+    Loop();
+}
+
 rule: 'AI Init'
 Player.Slot0
 Team.Team1
@@ -288,12 +298,13 @@ Number[] getInputs(define position) {
     //set inputs
     inputs = Append(inputs, [Health(EventPlayer()) / MaxHealth(EventPlayer()),
                         Ammo(EventPlayer()) / MaxAmmo(EventPlayer()), 
-                        DistanceBetween(position, EventPlayer())]);
-    //todo: normalisation?? the one where you get the inputs between 0 and 1
+                        DistanceBetween(position, EventPlayer()),
+                        DistanceBetween(ObjectivePosition(ObjectiveIndex()), EventPlayer())]);
     for (define i! = 0; i < CountOf(players); i++) {
         inputs = Append(inputs, Health(players[i]) / MaxHealth(players[i]));
         inputs = Append(inputs, IsInLineOfSight(position, players[i], BarrierLOS.EnemyBarriersBlock));
         inputs = Append(inputs, DistanceBetween(position, players[i]) / 50);
+        inputs = Append(inputs, AbsoluteValue(HorizontalAngleTowards(players[i], position) / 50));
         inputs = Append(YOf(position) - YOf(PositionOf(players[i])) / 10);
         inputs = Append(inputs, AbilityCooldown(players[i], Button.Ability1) / 10);
         inputs = Append(inputs, AbilityCooldown(players[i], Button.Ability2) / 10);
@@ -323,7 +334,7 @@ Number[] getInputs(define position) {
     for (define i! = 0; i < enemiesInRadius; i++) {
         define extraInput = [0, 0, 0, 0, 0, 0, getRecoverableHealth(position), IsUsingUltimate(EventPlayer())];
         extraInput[SlotOf(enemiesInRadius[i])] = 1;
-        extraInputs = Append(extraInputs, extraInput);
+        extraInputs = Append(extraInputs, [extraInput]);
         targets = Append(targets, enemiesInRadius[i]);
         bonusActions = Append(bonusActions, BonusAction.None);
     }
@@ -363,6 +374,7 @@ if (false)
         define choiceTargets = [];
         define choiceInputs = [];
         define choiceValues = [];
+        define choiceActions = [];
 
         //get the values of every possible state/action
         for (define i! = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
@@ -385,6 +397,7 @@ if (false)
                         choicePositions = Append(choicePositions, positions[posI]);
                         choiceInputs = Append(choiceInputs, Append(input[0], input[1][k]));
                     }
+                    choiceActions = Append(choiceActions, input[3]);
                     choiceTargets = Append(choiceTargets, input[2]);
                     define extraInputs = input[1];
                     input = input[0];
@@ -412,6 +425,7 @@ if (false)
         //set enemy and position targets
         pfDestination = choicePositions[actionIndex];
         aimTarget = choiceTargets[actionIndex];
+        extraAction = choiceActions[actionIndex];
         if (aimTarget != null) {
             StartFacing(EventPlayer(), aimTarget, 5, Relative.ToWorld, FacingRev.None);
         }
@@ -424,10 +438,7 @@ if (false)
         pastInputRewards = Append(pastInputRewards, 0);
         //end rule, run again next tick
         Wait(0.016);
-        //todo: if aiIsRunning = true
-        //related todo: make aiIsRunning false once the first round is over (only one round will be simulated per match)
         Loop();
-
     } 
     //else if death
     else if (MatchRound() < 2 && !IsAlive(EventPlayer())) {
@@ -472,6 +483,8 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
     }
 }
 
+
+
 void finish() 'Log results at end of match'
 {
     //Prepare vars for export/import
@@ -487,29 +500,30 @@ void finish() 'Log results at end of match'
     }
     w2Import = w2;
 
-    define aiSoldier = PlayersOnHero(Hero.Soldier76, Team.Team1);
-    define enemySoldier = PlayersOnHero(Hero.Soldier76, Team.Team2);
+    define aiSoldier = PlayersOnHero(Hero.Soldier76, Team.Team1)[0];
+    define enemySoldier = PlayersOnHero(Hero.Soldier76, Team.Team2)[0];
 
+    LogToInspector('Match time (seconds): {0}'.Format([aiTime]));
     LogToInspector('stats formatted as: damage/heals/kills/deaths/ultimatedmg/rocketdmg');
     LogToInspector('AI stats: {0}, {1}, {2}, {3}, {4}, {5}'.Format([
         aiSoldier.dmgDealtStat, aiSoldier.healingStat, aiSoldier.eliminationStat, 
         aiSoldier.deathStat, aiSoldier.ultimateDmgStat, aiSoldier.rocketDmgStat
     ]));
-    LogToInspector('AI stats: {0}, {1}, {2}, {3}, {4}, {5}'.Format([
+    LogToInspector('Enemy stats: {0}, {1}, {2}, {3}, {4}, {5}'.Format([
         enemySoldier.dmgDealtStat, enemySoldier.healingStat, enemySoldier.eliminationStat, 
         enemySoldier.deathStat, enemySoldier.ultimateDmgStat, enemySoldier.rocketDmgStat
     ]));
+    //check the stats recorded for enemy soldier against the official stat-tracking.
+    //dummy bot stats are not recorded via these methods, neccessitating the custom tracking
+    LogToInspector('Enemy assurance stats: {0} {1} {2} {3}'.Format([PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.AllDamageDealt),
+                                                                    PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.HealingDealt),
+                                                                    PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.Eliminations),
+                                                                    PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.Deaths)]));
     LogToInspector("Team 1 score: {0}".Format([TeamScore(Team.Team1)]));
+    LogToInspector("Team 2 score: {0}".Format([TeamScore(Team.Team2)]));
     DestroyAllDummyBots();
     SetMatchTime(999);
     SetSlowMotion(10);
-}
-
-rule: 'Bot is running'
-Event.OngoingPlayer
-if (IsDummyBot(EventPlayer()))
-{
-    aiIsRunning = true;
 }
 
 rule: 'Bot start shooting'
@@ -528,14 +542,30 @@ if (IsDummyBot(EventPlayer()) && aimTarget == null)
     StartHoldingButton(EventPlayer(), Button.Ability1);
 }
 
+rule: 'Bot use heals'
+Event.OngoingPlayer
+if (IsDummyBot(EventPlayer()) && extraAction == BonusAction.Heal)
+{
+    WaitUntil(DistanceBetween(EventPlayer(), pfDestination) < 4, 0.5);
+    PressButton(EventPlayer(), Button.Ability2);
+}
+
+rule: 'Bot use ult'
+Event.OngoingPlayer
+if (IsDummyBot(EventPlayer()) && extraAction == BonusAction.Ultimate)
+{
+    WaitUntil(DistanceBetween(EventPlayer(), pfDestination) < 4, 0.5); 
+    PressButton(EventPlayer(), Button.Ultimate);
+}
+
 rule: 'Bot fire rocket'
 Event.OngoingPlayer
-if (IsDummyBot(EventPlayer()) && aimTarget != null && AbilityCooldown(EventPlayer(), Button.SecondaryFire) == 0)
+if (IsDummyBot(EventPlayer()) && aimTarget != null && IsInLineOfSight(EventPlayer(), aimTarget, BarrierLOS.EnemyBarriersBlock) && AbilityCooldown(EventPlayer(), Button.SecondaryFire) == 0)
 {
     PressButton(EventPlayer(), Button.SecondaryFire);
 }
 
-rule: 'Bot track damage'
+rule: 'track damage'
 Event.OnDamageDealt
 Player.Soldier76
 {
@@ -550,19 +580,19 @@ Player.Soldier76
     }
 }
 
-rule: 'Bot track heal'
+rule: 'track heal'
 Event.OnHealingDealt
 Player.Soldier76
 {
     healingStat += EventHealing();
 }
-rule: 'Bot track elim'
+rule: 'track elim'
 Event.OnElimination
 Player.Soldier76
 {
     eliminationStat += 1;
 }
-rule: 'Bot track death'
+rule: 'track death'
 Event.OnDeath
 Player.Soldier76
 {
@@ -589,14 +619,14 @@ if (IsDummyBot(EventPlayer()) && !IsUsingUltimate(EventPlayer()))
 
 rule: 'AI deal extra damage to offset nerf'
 Event.OnDamageDealt
-if (IsDummyBot(EventPlayer()) && EventAbility() == Button.SecondaryFire)
+if (IsDummyBot(EventPlayer()) && EventAbility() == Button.SecondaryFire && dmgPercent != 100)
 {
     Damage(Victim(), EventPlayer(), EventDamage() / (dmgPercent / 100));
 }
 
 rule: 'deltaTime update'
-Event.OngoingGlobal
-if (aiIsRunning)
+Event.OngoingPlayer
+if (IsDummyBot(EventPlayer()))
 {
     deltaTime += 0.01666;
     Wait(0.01666);
