@@ -283,13 +283,12 @@ enum BonusAction {
     Ultimate
 }
 
-//TODO: make this function do literally anything, returning an array [inputs, [extraInputs1, extraInputs2, etc.], targets, bonusActions]
+//returns an array [inputs, [extraInputs1, extraInputs2, etc.], targets, bonusActions]
 //per teammate/enemy: distance, vertical distance, health, cooldown 1, 2, ult charge
 //self: Health, ammo, cooldown rocket/heals, is using ultimate, potential healing?
 //target: Health, distance, target hero thingy (5x bools)
 
 //put extra input [targeting 1, 2, 3, 4, 5, sprinting, healthtogain, isusingultimate]
-//todo: review this, add objective inputs, and make the bot perform BonusActions
 Number[] getInputs(define position) {
     define inputs = [];
     define extraInputs = [];
