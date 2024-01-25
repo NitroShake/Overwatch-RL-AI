@@ -653,6 +653,22 @@ Team.Team1
     deltaReward += EventDamage();
 }
 
+rule: 'Reward point lost'
+Player.Slot0
+Team.Team1
+if (ControlModeScoringTeam() == Team.Team2)
+{
+    deltaReward -= 100;
+}
+
+rule: 'Reward point taken'
+Player.Slot0
+Team.Team1
+if (ControlModeScoringTeam() == Team.Team1)
+{
+    deltaReward += 100;
+}
+
 rule: 'Reward kill'
 Event.OnElimination
 Player.Slot0
