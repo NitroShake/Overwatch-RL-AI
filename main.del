@@ -207,6 +207,8 @@ void backPropagate(define inputs, define actualValue) 'Back-propagation'
 
 rule: 'Match Init'
 {
+    DisableInspectorRecording();
+    SetSlowMotion(10);
     //track server load
     CreateHudText(AllPlayers(), '{0} {1} {2}'.Format([ServerLoad(), ServerLoadAverage(), ServerLoadPeak()]),
     null, null, Location.Left, 1, Color.White, Color.Aqua, Color.Aqua, HudTextRev.VisibleToAndString, Spectators.VisibleAlways);
@@ -224,8 +226,6 @@ rule: 'Match Init'
     }
     SetMatchTime(0);
     Wait(5);
-    SetSlowMotion(20);
-    DisableInspectorRecording();
     SetMatchTime(0);
 
     //spawn dummy next to slot 1 (teammate)

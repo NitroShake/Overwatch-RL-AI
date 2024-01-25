@@ -365,6 +365,7 @@ if (CurrentMap() == Map.Samoa)
 
 rule: "Set destination [debug]"
 Event.OngoingPlayer
+if (false)
 if (IsDummyBot(EventPlayer()) == true)
 {
     pfDestination = PositionOf(PlayersInSlot(0, Team.Team1));
@@ -373,6 +374,7 @@ if (IsDummyBot(EventPlayer()) == true)
 }
 
 rule: "Spawn dummy for testing [debug]"
+if (false)
 {
     Wait(10, WaitBehavior.IgnoreCondition);
     CreateDummyBot(Hero.Soldier76, Team.Team1, -1, PositionOf(PlayersInSlot(0, Team.All)), Vector(0, 0, 0));
