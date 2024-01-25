@@ -299,7 +299,9 @@ Number[] getInputs(define position) {
     inputs = Append(inputs, [Health(EventPlayer()) / MaxHealth(EventPlayer()),
                         Ammo(EventPlayer()) / MaxAmmo(EventPlayer()), 
                         DistanceBetween(position, EventPlayer()) / 30,
-                        DistanceBetween(ObjectivePosition(ObjectiveIndex()), EventPlayer())]);
+                        DistanceBetween(ObjectivePosition(ObjectiveIndex()), EventPlayer()),
+                        CurrentMap() == Map.Samoa ? 1 : -1,
+                        CurrentMap() == Map.Busan ? 1 : -1]);
     for (define i! = 0; i < CountOf(players); i++) {
         inputs = Append(inputs, Health(players[i]) / MaxHealth(players[i]));
         inputs = Append(inputs, IsInLineOfSight(position, players[i], BarrierLOS.EnemyBarriersBlock) ? 1 : -1);
