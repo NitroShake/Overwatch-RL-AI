@@ -222,7 +222,7 @@ rule: 'Match Init'
     SetMatchTime(0);
 
     //spawn dummy next to slot 1 (teammate)
-    CreateDummyBot(Hero.Soldier76, Team.Team1, 0, PlayersInSlot(1, Team.Team1)[0]);
+    CreateDummyBot(Hero.Soldier76, Team.Team1, 0, PlayersInSlot(1, Team.Team1));
 }
 
 rule: 'AI bot'
@@ -301,7 +301,7 @@ Number[] getInputs(define position) {
                         DistanceBetween(ObjectivePosition(ObjectiveIndex()), EventPlayer())]);
     for (define i! = 0; i < CountOf(players); i++) {
         inputs = Append(inputs, Health(players[i]) / MaxHealth(players[i]));
-        inputs = Append(inputs, IsInLineOfSight(position, players[i], BarrierLOS.EnemyBarriersBlock));
+        inputs = Append(inputs, IsInLineOfSight(position, players[i], BarrierLOS.EnemyBarriersBlock) ? 1 : -1);
         inputs = Append(inputs, DistanceBetween(position, players[i]) / 50);
         inputs = Append(inputs, AbsoluteValue(HorizontalAngleTowards(players[i], position) / 50));
         inputs = Append(YOf(position) - YOf(PositionOf(players[i])) / 10);
@@ -310,20 +310,20 @@ Number[] getInputs(define position) {
         inputs = Append(inputs, Max(UltimateChargePercent(players[i]) / 100, IsUsingUltimate(players[i])));
     }
     //sprinting to location
-    extraInputs = Append(extraInputs, [[0, 0, 0, 0, 0, 1, getRecoverableHealth(position), 0]]);
+    extraInputs = Append(extraInputs, [[-1, -1, -1, -1, -1, 1, getRecoverableHealth(position), -1]]);
     targets = Append(targets, null);
     bonusActions = Append(bonusActions, BonusAction.Sprint);
 
     //heal
     if (AbilityCooldown(EventPlayer(), Button.Ability2) == 0) {
-        extraInputs = Append(extraInputs, [[0, 0, 0, 0, 0, 0, (MaxHealth(EventPlayer()) - Health(EventPlayer())) / MaxHealth(EventPlayer()), 0]]);
+        extraInputs = Append(extraInputs, [[-1, -1, -1, -1, -1, -1, (MaxHealth(EventPlayer()) - Health(EventPlayer())) / MaxHealth(EventPlayer()), -1]]);
         targets = Append(targets, null);
         bonusActions = Append(bonusActions, BonusAction.Heal);
     }
 
     //use ult
     if (UltimateChargePercent(EventPlayer()) == 100) {
-        extraInputs = Append(extraInputs, [[0, 0, 0, 0, 0, 0, getRecoverableHealth(position), 1]]);
+        extraInputs = Append(extraInputs, [[-1, -1, -1, -1, -1, -1, getRecoverableHealth(position), 1]]);
         targets = Append(targets, null);
         bonusActions = Append(bonusActions, BonusAction.Ultimate);
     }
@@ -331,7 +331,7 @@ Number[] getInputs(define position) {
     //targeting each players in LOS
     define enemiesInRadius = PlayersWithinRadius(position, 50, Team.Team2, RadiusLOS.SurfacesAndEnemyBarriers);
     for (define i! = 0; i < enemiesInRadius; i++) {
-        define extraInput = [0, 0, 0, 0, 0, 0, getRecoverableHealth(position), IsUsingUltimate(EventPlayer())];
+        define extraInput = [-1, -1, -1, -1, -1, -1, getRecoverableHealth(position), IsUsingUltimate(EventPlayer())];
         extraInput[SlotOf(enemiesInRadius[i])] = 1;
         extraInputs = Append(extraInputs, [extraInput]);
         targets = Append(targets, enemiesInRadius[i]);
