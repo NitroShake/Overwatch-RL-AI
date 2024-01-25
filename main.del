@@ -76,7 +76,7 @@ rule: 'init weights'
                 array = Append(array, RandomReal(-1, 1));
             }   
             w1 = Append(w1, [array]);
-            Wait(0.016);
+            Wait(0.032);
         }
 
         for (define i! = 0; i < 66; i++) {
@@ -212,8 +212,6 @@ rule: 'Match Init'
     null, null, Location.Left, 1, Color.White, Color.Aqua, Color.Aqua, HudTextRev.VisibleToAndString, Spectators.VisibleAlways);
     //these two are crucial for performance - server crashes at regular speed, and
     //client crashes if inspector recording is enabled (too many step-throughs)
-    SetSlowMotion(20);
-    DisableInspectorRecording();
     
     //skip through game's setup phases, and setup array of players (excluding dummy). Wait times for extra stability
     Wait(5);
@@ -226,6 +224,8 @@ rule: 'Match Init'
     }
     SetMatchTime(0);
     Wait(5);
+    SetSlowMotion(20);
+    DisableInspectorRecording();
     SetMatchTime(0);
 
     //spawn dummy next to slot 1 (teammate)

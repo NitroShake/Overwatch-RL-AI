@@ -1,5 +1,8 @@
 {
     "Modes": {
+        "All": {
+            "Game Mode Start": "Immediately"
+        },
         "Control": {
             "Enabled": true,
             "Enabled Maps": ["Samoa", "Busan"],
