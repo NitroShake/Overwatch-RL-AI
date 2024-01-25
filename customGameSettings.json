@@ -1,0 +1,9 @@
+{
+    "Modes": {
+        "Control": {
+            "Enabled": true,
+            "Enabled Maps": ["Samoa", "Busan"],
+            "Limit Valid Control Points": "Second"
+        }
+    }
+}
