@@ -14,6 +14,8 @@ globalvar define aiTime = 0;
 playervar define aimTarget = null;
 playervar define extraAction = null;
 playervar define positionTracking = [];
+globalvar define team1Score = 0;
+globalvar define team2Score = 0;
 playervar define dmgPercent; //dmg multiplier (in percent) for primary fire (compensating for near-perfect aim)
 rule: 'assignDmgPercent'
 Event.OngoingPlayer
@@ -238,32 +240,6 @@ if (IsDummyBot(EventPlayer()))
     Loop();
 }
 
-rule: 'AI Init'
-Player.Slot0
-Team.Team1
-{
-
-}
-
-
-rule: 'AI Test'
-Player.Slot0
-Team.Team1
-{
-    w1 = [[0.3, 0.8], [0.6, -0.7], [-0.4, -0.5]];
-    w2 = [-0.3, 0.2];
-    LogToInspector(feedForward([0.36, -1, 0.4]));
-    LogToInspector(optimisedFeedForward([0.36, -1], [[0.4]]));
-    define sus = optimisedFeedForward([0.36], [[-1, 0.4], [0.8, -0.11], [-1, 0.4]]);
-    LogToInspector('the susses');
-    LogToInspector(sus[0]);
-    LogToInspector(sus[1]);
-    LogToInspector(sus[2]);
-    backPropagate([0.36, -1, 0.4], -5);
-    LogToInspector(feedForward([0.36, -1, 0.4]));
-    LogToInspector(optimisedFeedForward([0.36, -1], [[0.4]]));
-}
-
 rule: 'My Rule'
 Event.OngoingPlayer
 if (IsUsingAbility2(EventPlayer()))
@@ -377,7 +353,6 @@ rule: 'AI Loop'
 Event.OngoingPlayer
 Player.Slot0
 Team.Team1
-if (false)
 {
     if (MatchRound() < 2 && IsAlive(EventPlayer())) {
         define choicePositions = [];
@@ -544,8 +519,10 @@ void finish() 'Log results at end of match'
                                                                     PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.HealingDealt),
                                                                     PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.Eliminations),
                                                                     PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.Deaths)]));
-    LogToInspector("Team 1 score: {0}".Format([TeamScore(Team.Team1)]));
-    LogToInspector("Team 2 score: {0}".Format([TeamScore(Team.Team2)]));
+    LogToInspector("Team 1 Win: {0}".Format([TeamScore(Team.Team1)]));
+    LogToInspector("Team 1 Score: {0}".Format([team1Score]));
+    LogToInspector("Team 2 Win: {0}".Format([TeamScore(Team.Team2)]));
+    LogToInspector("Team 2 Score: {0}".Format([team2Score]));
     DestroyAllDummyBots();
     EnableInspectorRecording();
     Wait(10);
@@ -563,7 +540,7 @@ if (IsDummyBot(EventPlayer()) && aimTarget != null && IsInLineOfSight(EventPlaye
 
 rule: 'Bot stop shooting'
 Event.OngoingPlayer
-if (IsDummyBot(EventPlayer()) && aimTarget == null)
+if (IsDummyBot(EventPlayer()) && (aimTarget == null || !IsInLineOfSight(EventPlayer(), aimTarget, BarrierLOS.EnemyBarriersBlock)))
 {
     StopHoldingButton(EventPlayer(), Button.PrimaryFire);
     StartHoldingButton(EventPlayer(), Button.Ability1);
@@ -723,5 +700,15 @@ Event.OngoingPlayer
         ModifyVariable(positionTracking, Operation.RemoveFromArrayByIndex, 0);
     }
     Wait(0.2);
+    Loop();
+}
+
+rule: 'Update scores'
+{
+    if (MatchRound() < 2) {
+        team1Score = ControlModeScoringPercentage(Team.Team1);
+        team2Score = ControlModeScoringPercentage(Team.Team2);
+    }
+    Wait(1);
     Loop();
 }
