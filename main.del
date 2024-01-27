@@ -5,8 +5,8 @@ import 'customGameSettings.json';
 
 globalvar define e = 2.718281828;
 playervar define deltaReward = 0;
-globalvar define choiceMaxSteps = 3;
-globalvar define choiceStepSize = 6;
+globalvar define choiceMaxSteps = 2;
+globalvar define choiceStepSize = 7;
 globalvar define deltaTime = 0;
 globalvar define pastInputs = [];
 globalvar define pastInputTimes = [];
@@ -70,16 +70,16 @@ rule: 'init weights'
     }
     else {
         //PLEASE ADJUST FOR ACTUAL NODE/WEIGHT COUNT AS NECESSARY
-        for (define i! = 0; i < 99; i++) {
+        for (define i = 0; i < 38; i++) {
             define array = [];
-            for (define j! = 0; j < 66; j++) {
+            for (define j! = 0; j < 10; j++) {
                 array = Append(array, RandomReal(-1, 1));
             }   
             w1 = Append(w1, [array]);
-            Wait(0.032);
+            Wait(0.016);
         }
 
-        for (define i! = 0; i < 66; i++) {
+        for (define i = 0; i < 10; i++) {
             w2 = Append(w2, RandomReal(-1, 1));
         }
     }
@@ -91,35 +91,37 @@ rule: 'init weights'
 //NEURAL NETWORK BEGINS HERE
 //this could be bundled into a class, but classes are merely an abstraction that place their instance's vars into a shared array
 //this effectively makes the weights a 3d array, which would kill performance
-globalvar define learningRate = 0.1;
+globalvar define learningRate = 0.001;
 globalvar define w1;
 globalvar define w2;   
 globalvar define lastLayer1;
 
-Number feedForward(define inputs) 'test'
+Number feedForward(define inputs) 'feed-forward'
 {
     LogToInspector("Feeding forward...");
     define output = 0;
     define layer1 = [];
 
     //forward all inputs to hidden layer. w2 has one weight per HL node, so it's used for the countof
-    for (define i! = 0; i < CountOf(w2); i++) {
-        for (define j! = 0; j < CountOf(inputs); j++) {
+    for (define i = 0; i < CountOf(w2); i++) {
+        for (define j = 0; j < CountOf(inputs); j++) {
             layer1[i] += inputs[j] * w1[j][i];
             //LogToInspector(w1[j][i]);
         }
     }
     //LogToInspector(layer1);
 
+    Wait(0.016);
+
     //activation function on hidden layer
-    for (define i! = 0; i < CountOf(w2); i++) {
+    for (define i = 0; i < CountOf(w2); i++) {
         layer1[i] = tanh(layer1[i]);
     } 
 
     //LogToInspector(layer1);
 
     //forward hidden layer to output node
-    for (define i! = 0; i < CountOf(w2); i++) {
+    for (define i = 0; i < CountOf(w2); i++) {
         output += layer1[i] * w2[i];
     }
 
@@ -131,45 +133,52 @@ Number feedForward(define inputs) 'test'
 //feedforward optimised for multiple FFs. calculates the non-activated values for the first hidden layer once,
 //then reuses them for each FF, adding on inputs from extraInputs[i] each time.
 //this reduces the multiplications needed for subsequent FFs, saving server resources
-define optimisedFeedForward(define inputs, define extraInputs) {
+define optimisedFeedForward(define inputs, define extraInputs) 'optimised feed-forward' {
     define layer1 = [];
     define baseWeightI = 0;
 
-    for (define i! = 0; i < CountOf(w2); i++) {
+    for (define i = 0; i < CountOf(w2); i++) {
         for (define j = 0; j < CountOf(inputs); j++) {
             layer1[i] += inputs[j] * w1[j][i];
             baseWeightI = j;
         }
     }
 
+    Wait(0.016);
     //LogToInspector("i {0}".Format([baseWeightI]));
 
     define outputs = [];
+    baseWeightI += 1;
+    define breakI1 = RoundToInteger(CountOf(extraInputs) / 2);
     LogToInspector('the layers');
-    for (define i! = 0; i < CountOf(extraInputs); i++) {
+    for (define i = 0; i < CountOf(extraInputs); i++) {
         define output = 0;
         define hiddenLayer = layer1;
+        define extraInput = extraInputs[i];
         for (define j = 0; j < CountOf(hiddenLayer); j++) {
-            for (define k = 0; k < CountOf(extraInputs[i]); k++) {
-                hiddenLayer[j] += extraInputs[i][k] * w1[baseWeightI + 1 + k][j];
+            for (define k = 0; k < CountOf(extraInput); k++) {
+                hiddenLayer[j] += extraInput[k] * w1[baseWeightI + k][j];
                 //LogToInspector('multiplying {0} by {1}'.Format([extraInputs[i][k], w1[baseWeightI + 1 + k][j]]));
             }
         }
 
-        for (define j! = 0; j < CountOf(layer1); j++) {
+        for (define j = 0; j < CountOf(layer1); j++) {
             hiddenLayer[j] = tanh(hiddenLayer[j]);
         } 
 
         //LogToInspector('hidden layer: {0} | {1}'.Format([hiddenLayer[0], hiddenLayer[1]]));
 
         //forward hidden layer to output node
-        for (define j! = 0; j < CountOf(hiddenLayer); j++) {
+        for (define j = 0; j < CountOf(hiddenLayer); j++) {
             output += hiddenLayer[j] * w2[j];
             //LogToInspector('adding {0} * {1} to output'.Format([hiddenLayer[j], w2[j]]));
         }
 
         outputs = outputs.Append(output);
         //LogToInspector('----');
+        //if (i == breakI1) {
+            //Wait(0.016);
+        //}
     }
 
     return outputs;
@@ -179,27 +188,32 @@ Number tanh(define x)
 {
     define e2x = RaiseToPower(e, 2*x);
     return (e2x - 1) / (e2x + 1);
+    return x;
 }
 
 Number tanhDerivative(define x) {
-    return 1 - RaiseToPower(tanh(x), 2);
+    define y = tanh(x);
+    return 1 - (y * y);
 }
 
 void backPropagate(define inputs, define actualValue) 'Back-propagation'
 {
-    define loss = feedForward(inputs) - actualValue;
     Wait(0.016);
+    define loss = feedForward(inputs) - actualValue;
     LogToInspector("Back-propagating...");
     define hlLosses = [];
     for (define i = 0; i < CountOf(w2); i++) {
         hlLosses = Append(hlLosses, w2[i] * loss * tanhDerivative(lastLayer1[i]));
         w2[i] = w2[i] - (learningRate * lastLayer1[i] * loss);
     }
+    Wait(0.016);
 
-    for (define i = 0; i < CountOf(hlLosses); i++) {
-        for (define j = 0; j < CountOf(inputs); j++) {
-            w1[j][i] = w1[j][i] - (learningRate * inputs[j][i] * hlLosses[i]);
+    for (define j = 0; j < CountOf(inputs); j++) {
+        define weights = w1[j];
+        for (define i = 0; i < CountOf(hlLosses); i++) {
+            weights[i] = weights[i] - (learningRate * inputs[j] * hlLosses[i]);
         }
+        w1[j] = weights;
     }
 }
 //NEURAL NETWORK ENDS HERE
@@ -208,7 +222,6 @@ void backPropagate(define inputs, define actualValue) 'Back-propagation'
 rule: 'Match Init'
 {
     DisableInspectorRecording();
-    SetSlowMotion(10);
     //track server load
     CreateHudText(AllPlayers(), '{0} {1} {2}'.Format([ServerLoad(), ServerLoadAverage(), ServerLoadPeak()]),
     null, null, Location.Left, 1, Color.White, Color.Aqua, Color.Aqua, HudTextRev.VisibleToAndString, Spectators.VisibleAlways);
@@ -216,17 +229,20 @@ rule: 'Match Init'
     //client crashes if inspector recording is enabled (too many step-throughs)
     
     //skip through game's setup phases, and setup array of players (excluding dummy). Wait times for extra stability
-    Wait(5);
+    Wait(15);
     players = [];
-    for (define i = 1; i < 5; i++) {
+    for (define i = 1; i < 3; i++) {
         players = Append(players, PlayersInSlot(i, Team.Team1));
     }
-    for (define i = 0; i < 5; i++) {
+    for (define i = 0; i < 3; i++) {
         players = Append(players, PlayersInSlot(i, Team.Team2));
     }
     SetMatchTime(0);
     Wait(5);
     SetMatchTime(0);
+    Wait(18);
+    SetSlowMotion(20);
+    Wait(2);
 
     //spawn dummy next to slot 1 (teammate)
     CreateDummyBot(Hero.Soldier76, Team.Team1, 0, PlayersInSlot(1, Team.Team1));
@@ -270,61 +286,61 @@ enum BonusAction {
 //target: Health, distance, target hero thingy (5x bools)
 
 //put extra input [targeting 1, 2, 3, 4, 5, sprinting, healthtogain, isusingultimate]
-Number[] getInputs(define position) {
+Number[] getInputs(define position) 'get inputs' {
     define inputs = [];
     define extraInputs = [];
     define targets = [];
     define bonusActions = [];
     //set inputs
+    LogToInspector(1);
     inputs = Append(inputs, [Health(EventPlayer()) / MaxHealth(EventPlayer()),
                             Ammo(EventPlayer()) / MaxAmmo(EventPlayer()),
                             AbilityCooldown(EventPlayer(), Button.Ability2) / 18,
                             UltimateChargePercent(EventPlayer()) / 100,
                             DistanceBetween(position, EventPlayer()) / 30,
                             DistanceBetween(position, pfDestination) / 30,
-                            DistanceBetween(ObjectivePosition(ObjectiveIndex()), EventPlayer()),
-                            YOf(position) - YOf(ObjectivePosition(ObjectiveIndex())) / 10,
-                            CurrentMap() == Map.Samoa ? 1 : -1,
-                            CurrentMap() == Map.Busan ? 1 : -1]);
-    for (define i! = 0; i < CountOf(players); i++) {
+                            DistanceBetween(ObjectivePosition(ObjectiveIndex()), EventPlayer())]);
+    LogToInspector(1);
+    for (define i = 0; i < CountOf(players); i++) {
         inputs = Append(inputs, [Health(players[i]) / MaxHealth(players[i]),
                                 (IsAlive() && IsInLineOfSight(position, players[i], BarrierLOS.EnemyBarriersBlock)) ? 1 : -1,
                                 DistanceBetween(position, players[i]) / 50,
                                 DistanceBetween(position, players[i].positionTracking[0]) - DistanceBetween(position, players[i]) / 20,
-                                AbsoluteValue(HorizontalAngleTowards(players[i], position)) / 180,
-                                YOf(position) - YOf(PositionOf(players[i])) / 10,
-                                AbilityCooldown(players[i], Button.Ability1) / 10,
-                                AbilityCooldown(players[i], Button.Ability2) / 10,
                                 Max(UltimateChargePercent(players[i]) / 100, IsUsingUltimate(players[i]))]);
     }
+    LogToInspector(2);
     //sprinting to location
-    extraInputs = Append(extraInputs, [[-1, -1, -1, -1, -1, 1, getRecoverableHealth(position), -1]]);
+    extraInputs = Append(extraInputs, [[-1, -1, -1, 1, getRecoverableHealth(position), -1]]);
     targets = Append(targets, null);
     bonusActions = Append(bonusActions, BonusAction.Sprint);
 
     //heal
     if (AbilityCooldown(EventPlayer(), Button.Ability2) == 0) {
-        extraInputs = Append(extraInputs, [[-1, -1, -1, -1, -1, -1, (MaxHealth(EventPlayer()) - Health(EventPlayer())) / MaxHealth(EventPlayer()), -1]]);
+        extraInputs = Append(extraInputs, [[-1, -1, -1, -1, (MaxHealth(EventPlayer()) - Health(EventPlayer())) / MaxHealth(EventPlayer()), -1]]);
         targets = Append(targets, null);
         bonusActions = Append(bonusActions, BonusAction.Heal);
     }
 
     //use ult
     if (UltimateChargePercent(EventPlayer()) == 100) {
-        extraInputs = Append(extraInputs, [[-1, -1, -1, -1, -1, -1, getRecoverableHealth(position), 1]]);
+        extraInputs = Append(extraInputs, [[-1, -1, -1, -1, getRecoverableHealth(position), 1]]);
         targets = Append(targets, null);
         bonusActions = Append(bonusActions, BonusAction.Ultimate);
     }
+    LogToInspector(3);
 
     //targeting each players in LOS
     define enemiesInRadius = PlayersWithinRadius(position, 50, Team.Team2, RadiusLOS.SurfacesAndEnemyBarriers);
-    for (define i! = 0; i < enemiesInRadius; i++) {
-        define extraInput = [-1, -1, -1, -1, -1, -1, getRecoverableHealth(position), IsUsingUltimate(EventPlayer())];
-        extraInput[SlotOf(enemiesInRadius[i])] = 1;
-        extraInputs = Append(extraInputs, [extraInput]);
-        targets = Append(targets, enemiesInRadius[i]);
-        bonusActions = Append(bonusActions, BonusAction.None);
+    if (CountOf(enemiesInRadius) != 0) {
+        for (define i = 0; i < CountOf(enemiesInRadius); i++) {
+            define extraInput = [-1, -1, -1, -1, getRecoverableHealth(position), IsUsingUltimate(EventPlayer())];
+            extraInput[SlotOf(enemiesInRadius[i])] = 1;
+            extraInputs = Append(extraInputs, [extraInput]);
+            targets = Append(targets, enemiesInRadius[i]);
+            bonusActions = Append(bonusActions, BonusAction.None);
+        }
     }
+    LogToInspector(4);
 
     return [inputs, extraInputs, targets, bonusActions];
 }
@@ -333,10 +349,10 @@ Number[] getInputs(define position) {
 //e.g. [-20, 40, -30, 60] becomes [10, 70, 0, 90]
 Number[] numsToAllPositiveNums(define array) {
     define lowestNumber = 0;
-    for (define i! = 0; i < CountOf(array); i++) {
+    for (define i = 0; i < CountOf(array); i++) {
         lowestNumber = Min(lowestNumber, array[i]);
     }
-    for (define i! = 0; i < CountOf(array); i++) {
+    for (define i = 0; i < CountOf(array); i++) {
         array[i] = array[i] - lowestNumber;
     }
     return array;
@@ -344,108 +360,139 @@ Number[] numsToAllPositiveNums(define array) {
 
 Number sumArray(define array) {
     define sum = 0;
-    for (define i! = 0; i < CountOf(array); i++) {
+    for (define i = 0; i < CountOf(array); i++) {
         sum += array[i];
     }
     return sum;
 }
+
+rule: 'ai vars'
+Event.OngoingPlayer
+Player.Slot0
+Team.Team1
+{
+    CreateHudText(AllPlayers(), "{0} {1} {2}".Format([probability, rand, whoops]));
+    CreateHudText(AllPlayers(), "{0}".Format([oops]));
+}
+globalvar define oops = 0;
+globalvar define whoops = 0;
+
+playervar define probability;
+playervar define rand;
 
 rule: 'AI Loop'
 Event.OngoingPlayer
 Player.Slot0
 Team.Team1
 {
-    if (MatchRound() < 2 && IsAlive(EventPlayer())) {
-        define choicePositions = [];
-        define choiceTargets = [];
-        define choiceInputs = [];
-        define choiceValues = [];
-        define choiceActions = [];
+    Wait(1);
+    while (TeamScore(Team.Team1) == 0 && TeamScore(Team.Team2) == 0) {
+        if (IsAlive(EventPlayer())) {
+            define choicePositions = [];
+            define choiceTargets = [];
+            define choiceInputs = [];
+            define choiceValues = [];
+            define choiceActions = [];
 
-        //get the values of every possible state/action
-        for (define i! = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
-            for (define j! = -choiceMaxSteps; j <= choiceMaxSteps; j++) {
-                define positions = [];
-                for (define k! = -1; k <= 1; k++) {
-                    define basePos = PositionOf(EventPlayer()) + Vector(i * choiceStepSize, k * 6, j * choiceStepSize);
-                    define potentialPos = NearestWalkablePosition(basePos);
-                    if (CountOf(positions) == 0) {
-                        if (DistanceBetween(Vector(basePos.X, 0, basePos.Z),
-                                            Vector(potentialPos.X, 0, potentialPos.Z)) < choiceStepSize) {
-                            positions = Append(positions, potentialPos);
+            //get the values of every possible state/action
+            for (define i = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
+                for (define j = -choiceMaxSteps; j <= choiceMaxSteps; j++) {
+                    define positions = [];
+                    for (define k = -1; k <= 1; k++) {
+                        define basePos = PositionOf(EventPlayer()) + Vector(i * choiceStepSize, k * 6, j * choiceStepSize);
+                        define potentialPos = NearestWalkablePosition(basePos);
+                        if (CountOf(positions) == 0) {
+                            if (DistanceBetween(Vector(basePos.X, 0, basePos.Z),
+                                                Vector(potentialPos.X, 0, potentialPos.Z)) < choiceStepSize) {
+                                positions = Append(positions, potentialPos);
+                            }
+                        }  
+                        else if (CountOf(positions) == 1) {
+                            if (AbsoluteValue(YOf(positions[0]) - YOf(potentialPos)) >= 4) {
+                                positions = Append(positions, potentialPos);
+                            }
                         }
-                    }  
-                    else if (CountOf(positions) == 1) {
-                        if (AbsoluteValue(YOf(positions[0]) - YOf(potentialPos)) >= 4) {
-                            positions = Append(positions, potentialPos);
+                        else if (CountOf(positions) == 2) {
+                            if (AbsoluteValue(YOf(positions[0]) - YOf(potentialPos)) >= 4 && AbsoluteValue(YOf(positions[1]) - YOf(potentialPos)) >= 4) {
+                                positions = Append(positions, potentialPos);
+                            }
                         }
                     }
-                    else if (CountOf(positions) == 2) {
-                        if (AbsoluteValue(YOf(positions[0]) - YOf(potentialPos)) >= 4 && AbsoluteValue(YOf(positions[1]) - YOf(potentialPos)) >= 4) {
-                            positions = Append(positions, potentialPos);
-                        }
-                    }
-                }
+                    LogToInspector("got positions");
+                    LogToInspector(CountOf(positions));
 
-                for (define posI! = 0; posI < CountOf(positions); posI++) {
-                    define input = getInputs(positions[posI]);
-                    for (define k = 0; k < CountOf(input[1]); k++) {
-                        choicePositions = Append(choicePositions, positions[posI]);
-                        choiceInputs = Append(choiceInputs, Append(input[0], input[1][k]));
+                    for (define posI = 0; posI < CountOf(positions); posI++) {
+                        define input = getInputs(positions[posI]);
+                        LogToInspector(CountOf(input));
+                        LogToInspector("input");
+                        define extraInputs = input[1];
+                        define baseInput = input[0];
+                        for (define k = 0; k < CountOf(input[1]); k++) {
+                            choicePositions = Append(choicePositions, positions[posI]);
+                            choiceInputs = Append(choiceInputs, [Append(baseInput, extraInputs[k])]);
+                        }
+                        choiceActions = Append(choiceActions, input[3]);
+                        choiceTargets = Append(choiceTargets, input[2]);
+                        LogToInspector("array stuff");
+                        Wait(0.016);
+                        define values = optimisedFeedForward(baseInput, extraInputs);
+                        LogToInspector("feed-forward");
+                        choiceValues = Append(choiceValues, values);
+                        LogToInspector(posI);
                     }
-                    choiceActions = Append(choiceActions, input[3]);
-                    choiceTargets = Append(choiceTargets, input[2]);
-                    define extraInputs = input[1];
-                    input = input[0];
-                    define values = optimisedFeedForward(input, extraInputs);
-                    choiceValues = Append(choiceValues, [values]);
-                    Wait(0.016);
                 }
             }
-        }
+            //get the index of the state-action to be chosen.
+            define positiveValues = numsToAllPositiveNums(choiceValues);
+            define sumValues = sumArray(positiveValues);
+            probability = 0;
+            rand = RandomReal(0.01, 0.99);
+            define actionIndex = -1;
+            //EnableInspectorRecording();
+            while (probability <= rand && actionIndex < CountOf(positiveValues)) {
+                actionIndex++;
+                probability += positiveValues[actionIndex] / sumValues;
+            }
+            if (actionIndex == CountOf(positiveValues)) {
+                oops += 1;
+                EnableInspectorRecording();
+                Wait(20);
+            }
 
-        //get the index of the state-action to be chosen.
-        define positiveValues = numsToAllPositiveNums(choiceValues);
-        define sumValues = sumArray(positiveValues);
-        define probability = 0;
-        define rand = RandomReal(0, 1);
-        define actionIndex = -1;
-        while (probability < rand) {
-            actionIndex++;
-            probability += positiveValues[actionIndex] / sumValues;
-        }
-        Wait(0.016);
+            Wait(0.016);
 
-        handleBackprop(30);
-        
-        //set enemy and position targets
-        pfDestination = choicePositions[actionIndex];
-        aimTarget = choiceTargets[actionIndex];
-        extraAction = choiceActions[actionIndex];
-        if (aimTarget != null) {
-            StartFacing(EventPlayer(), aimTarget, 5, Relative.ToWorld, FacingRev.None);
+            handleBackprop(30);
+            whoops = CountOf(pastInputRewards);
+            
+            //set enemy and position targets
+            pfDestination = choicePositions[actionIndex];
+            aimTarget = choiceTargets[actionIndex];
+            extraAction = choiceActions[actionIndex];
+            if (aimTarget != null) {
+                StartFacing(EventPlayer(), DirectionTowards(EventPlayer(), aimTarget), 99, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
+            }
+            else {
+                StartFacing(EventPlayer(), DirectionTowards(EventPlayer(), pfWalkingToPosition), 99, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
+            }
+            pastInputs = Append(pastInputs, [choiceInputs[actionIndex]]);
+            pastInputTimes = Append(pastInputTimes, 0);
+            pastInputRewards = Append(pastInputRewards, 0);
+            //end rule, run again next tick
         }
+        //else if death
         else {
-            StartFacing(EventPlayer(), ThrottleOf(EventPlayer()), 5, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
+            //backprop every input made leading up to death
+            //EnableInspectorRecording();
+            //Wait(20);
+            pfDestination = null;
+            handleBackprop(0);
+            //WaitUntil(IsAlive(EventPlayer()), 20);
         }
-
-        pastInputs = Append(pastInputs, choiceInputs[actionIndex]);
-        pastInputTimes = Append(pastInputTimes, 0);
-        pastInputRewards = Append(pastInputRewards, 0);
-        //end rule, run again next tick
         Wait(0.016);
-        Loop();
     } 
-    //else if death
-    else if (MatchRound() < 2 && !IsAlive(EventPlayer())) {
-        //backprop every input made leading up to death
-        handleBackprop(0);
-    }
     //else (meaning first round has finished, so the simulation should end)
-    else {
-        handleBackprop(0);
-        finish();
-    }
+    handleBackprop(0);
+    finish();
 }
 
 void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropagation' {
@@ -453,14 +500,14 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
         define indexesToRemove = [];
 
         //for each input
-        for (define i! = 0; i < CountOf(pastInputs); i++) {
+        for (define i = 0; i < CountOf(pastInputs); i++) {
             pastInputTimes[i] += deltaTime;
 
             //add reward to the input, where 0.9 is the discount rate
             pastInputRewards[i] += deltaReward * RaiseToPower(0.9, pastInputTimes[i]);
 
             //if the input was made more than inputLifespan secs ago, backpropagate using the value accumulated since then
-            if (pastInputTimes[i] >= inputLifespan) {
+            if (inputLifespan != -1 && pastInputTimes[i] >= inputLifespan) {
                 backPropagate(pastInputs[i], pastInputRewards[i]);
                 indexesToRemove = Append(indexesToRemove, i);
                 Wait(0.016);
@@ -468,39 +515,23 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
         }
 
         //remove the backpropagated inputs
-        for (define i! = 0; i < CountOf(indexesToRemove); i++) {
+        for (define i = 0; i < CountOf(indexesToRemove); i++) {
             pastInputs = RemoveFromArrayAtIndex(pastInputs, indexesToRemove[i]);
             pastInputTimes = RemoveFromArrayAtIndex(pastInputTimes, indexesToRemove[i]);
             pastInputRewards = RemoveFromArrayAtIndex(pastInputRewards, indexesToRemove[i]);
         }
+
+        Wait(0.016);
 
         deltaTime = 0;
         deltaReward = 0;
     }
 }
 
-
-
 void finish() 'Log results at end of match'
 {
-    //Prepare vars for export/import
-    w1Import1 = [];
-    w1Import2 = [];
-    w1Import3 = [];
-    w2Import = [];
-    //PLEASE ADJUST FOR ACTUAL NODE/WEIGHT COUNT AS NECESSARY
-    for (define i! = 0; i < 40; i++)  {
-        w1Import1 = Append(w1Import1, [w1[i]]);
-    }
-    for (define i! = 40; i < 80; i++)  {
-        w1Import2 = Append(w1Import1, [w1[i]]);
-    }
-    Wait(0.016);
-    for (define i! = 80; i < 99; i++) {
-        w1Import3 = Append(w1Import3, [w1[i]]);
-    }
-    w2Import = w2;
-
+    SetSlowMotion(10);
+    EnableInspectorRecording();
     define aiSoldier = PlayersOnHero(Hero.Soldier76, Team.Team1)[0];
     define enemySoldier = PlayersOnHero(Hero.Soldier76, Team.Team2)[0];
 
@@ -516,19 +547,38 @@ void finish() 'Log results at end of match'
     ]));
     //check the stats recorded for enemy soldier against the official stat-tracking.
     //dummy bot stats are not recorded via these methods, neccessitating the custom tracking
-    LogToInspector('Enemy assurance stats: {0} {1} {2} {3}'.Format([PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.AllDamageDealt),
+    LogToInspector('Enemy assurance stats: {0} {1} {2} {3} {4}'.Format([PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.AllDamageDealt),
                                                                     PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.HealingDealt),
                                                                     PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.Eliminations),
-                                                                    PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.Deaths)]));
+                                                                    PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.Deaths),
+                                                                    PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.WeaponAccuracy)]));
+    Wait(0.016);
     LogToInspector("Team 1 Win: {0}".Format([TeamScore(Team.Team1)]));
     LogToInspector("Team 1 Score: {0}".Format([team1Score]));
     LogToInspector("Team 2 Win: {0}".Format([TeamScore(Team.Team2)]));
     LogToInspector("Team 2 Score: {0}".Format([team2Score]));
     DestroyAllDummyBots();
-    EnableInspectorRecording();
+    //Prepare vars for export/import
+    w1Import1 = [];
+    w1Import2 = [];
+    w1Import3 = [];
+    w2Import = [];
+    //PLEASE ADJUST FOR ACTUAL NODE/WEIGHT COUNT AS NECESSARY
+    for (define i = 0; i < 38; i++)  {
+        w1Import1 = Append(w1Import1, [w1[i]]);
+    }
+    Wait(0.016);
+    for (define i = 40; i < 63; i++)  {
+        w1Import2 = Append(w1Import1, [w1[i]]);
+    }
+    Wait(0.016);
+    for (define i = 80; i < 81; i++) {
+        //w1Import3 = Append(w1Import3, [w1[i]]);
+    }
+    w2Import = w2;
+
     Wait(10);
     SetMatchTime(999);
-    SetSlowMotion(10);
 }
 
 rule: 'Bot start shooting'
@@ -590,6 +640,7 @@ Event.OnHealingDealt
 Player.Soldier76
 {
     healingStat += EventHealing();
+    deltaReward += EventHealing() * 0.005;
 }
 rule: 'track elim'
 Event.OnElimination
@@ -643,7 +694,7 @@ Event.OnDamageDealt
 Player.Slot0
 Team.Team1
 {
-    deltaReward += EventDamage();
+    deltaReward += EventDamage() * 0.01;
 }
 
 rule: 'Reward point lost'
@@ -651,7 +702,7 @@ Player.Slot0
 Team.Team1
 if (ControlModeScoringTeam() == Team.Team2)
 {
-    deltaReward -= 100;
+    deltaReward -= 2.5;
 }
 
 rule: 'Reward point taken'
@@ -659,7 +710,7 @@ Player.Slot0
 Team.Team1
 if (ControlModeScoringTeam() == Team.Team1)
 {
-    deltaReward += 100;
+    deltaReward += 2.5;
 }
 
 rule: 'Reward kill'
@@ -667,7 +718,7 @@ Event.OnElimination
 Player.Slot0
 Team.Team1
 {
-    deltaReward += 200;
+    deltaReward += 2;
 }
 
 rule: 'Reward damage'
@@ -675,7 +726,7 @@ Event.OnDamageTaken
 Player.Slot0
 Team.Team1
 {
-    deltaReward -= EventDamage();
+    deltaReward -= EventDamage() * 0.01;
 }
 
 rule: 'Reward damage'
@@ -683,14 +734,7 @@ Event.OnDeath
 Player.Slot0
 Team.Team1
 {
-    deltaReward -= EventDamage();
-}
-
-rule: 'place heals'
-Event.OngoingPlayer
-if (Health(EventPlayer()) < 150 && AbilityCooldown(EventPlayer(), Button.Ability2) == 0)
-{
-    PressButton(EventPlayer(), Button.Ability2);
+    deltaReward -= EventDamage() * 0.01;
 }
 
 rule: 'track positioning'

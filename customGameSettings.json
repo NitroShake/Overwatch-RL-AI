@@ -1,4 +1,13 @@
 {
+    "Heroes": {
+        "General": {
+            "Enabled Heroes": ["Reinhardt", "Soldier: 76", "Mercy"]
+        }
+    },
+    "Lobby": {
+        "Max Team 1 Players": 3,
+        "Max Team 2 Players": 3
+    },
     "Modes": {
         "All": {
             "Game Mode Start": "Immediately"
@@ -6,7 +15,8 @@
         "Control": {
             "Enabled": true,
             "Enabled Maps": ["Samoa", "Busan"],
-            "Limit Valid Control Points": "Second"
+            "Limit Valid Control Points": "Second",
+            "Scoring Speed Modifier": 150
         }
     }
 }
