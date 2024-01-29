@@ -1,7 +1,7 @@
 {
     "Heroes": {
         "General": {
-            "Enabled Heroes": ["Reinhardt", "Soldier: 76", "Mercy"]
+            "Enabled Heroes": ["Orisa", "Soldier: 76", "Mercy"]
         }
     },
     "Lobby": {
@@ -14,9 +14,9 @@
         },
         "Control": {
             "Enabled": true,
-            "Enabled Maps": ["Samoa", "Busan"],
+            "Enabled Maps": ["Busan"],
             "Limit Valid Control Points": "Second",
-            "Scoring Speed Modifier": 150
+            "Scoring Speed Modifier": 120
         }
     }
 }
