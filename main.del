@@ -6,7 +6,7 @@ import 'customGameSettings.json';
 globalvar define e = 2.718281828;
 playervar define deltaReward = 0;
 globalvar define choiceMaxSteps = 2;
-globalvar define choiceStepSize = 7;
+globalvar define choiceStepSize = 7.5;
 globalvar define deltaTime = 0;
 globalvar define pastInputs = [];
 globalvar define pastInputTimes = [];
@@ -14,6 +14,7 @@ globalvar define pastInputRewards = [];
 globalvar define aiTime = 0;
 playervar define aimTarget = null;
 playervar define extraAction = null;
+globalvar define runSlow = false;
 playervar define positionTracking = [];
 globalvar define team1Score = 0;
 globalvar define team2Score = 0;
@@ -71,17 +72,17 @@ rule: 'init weights'
     }
     else {
         //PLEASE ADJUST FOR ACTUAL NODE/WEIGHT COUNT AS NECESSARY
-        for (define i = 0; i < 53; i++) {
+        for (define i = 0; i < 54; i++) {
             define array = [];
             for (define j! = 0; j < 30; j++) {
-                array = Append(array, RandomReal(-1, 1));
+                array = Append(array, RandomReal(-5, 5));
             }   
             w1 = Append(w1, [array]);
             Wait(0.016);
         }
 
         for (define i = 0; i < 30; i++) {
-            w2 = Append(w2, RandomReal(-1, 1));
+            w2 = Append(w2, RandomReal(-5, 5));
         }
     }
 }
@@ -110,6 +111,9 @@ Number feedForward(define inputs) 'feed-forward'
             //LogToInspector(w1[j][i]);
         }
     }
+    if (runSlow) {
+        Wait(0.016);
+    }
     //LogToInspector(layer1);
 
     Wait(0.016);
@@ -118,6 +122,9 @@ Number feedForward(define inputs) 'feed-forward'
     for (define i = 0; i < CountOf(w2); i++) {
         layer1[i] = tanh(layer1[i]);
     } 
+    if (runSlow) {
+        Wait(0.016);
+    }
 
     //LogToInspector(layer1);
 
@@ -144,6 +151,9 @@ define optimisedFeedForward(define inputs, define extraInputs) 'optimised feed-f
             baseWeightI = j;
         }
     }
+    if (runSlow) {
+        Wait(0.016);
+    }
 
     Wait(0.016);
     //LogToInspector("i {0}".Format([baseWeightI]));
@@ -162,10 +172,16 @@ define optimisedFeedForward(define inputs, define extraInputs) 'optimised feed-f
                 //LogToInspector('multiplying {0} by {1}'.Format([extraInputs[i][k], w1[baseWeightI + 1 + k][j]]));
             }
         }
+        if (runSlow) {
+            Wait(0.016);
+        }
 
         for (define j = 0; j < CountOf(layer1); j++) {
             hiddenLayer[j] = tanh(hiddenLayer[j]);
         } 
+        if (runSlow) {
+            Wait(0.016);
+        }
 
         //LogToInspector('hidden layer: {0} | {1}'.Format([hiddenLayer[0], hiddenLayer[1]]));
 
@@ -203,14 +219,14 @@ void backPropagate(define inputs, define actualValue) 'Back-propagation'
     define loss = feedForward(inputs) - actualValue;
     totalLoss += AbsoluteValue(loss);
     lossCount++;
-    EnableInspectorRecording();
-    LogToInspector("loss {0}".Format([loss]));
-    DisableInspectorRecording();
     LogToInspector("Back-propagating...");
     define hlLosses = [];
     for (define i = 0; i < CountOf(w2); i++) {
         hlLosses = Append(hlLosses, w2[i] * loss * tanhDerivative(lastLayer1[i]));
         w2[i] = w2[i] - (learningRate * lastLayer1[i] * loss);
+        if (runSlow) {
+            Wait(0.016);
+        }
     }
     Wait(0.016);
 
@@ -220,12 +236,10 @@ void backPropagate(define inputs, define actualValue) 'Back-propagation'
             weights[i] = weights[i] - (learningRate * inputs[j] * hlLosses[i]);
         }
         w1[j] = weights;
+        if (runSlow) {
+            Wait(0.016);
+        }
     }
-    Wait(0.016);
-    loss = feedForward(inputs) - actualValue;
-    EnableInspectorRecording();
-    LogToInspector("loss corrected {0}".Format([loss]));
-    DisableInspectorRecording();
 }
 //NEURAL NETWORK ENDS HERE
 //==========================================================================
@@ -252,7 +266,7 @@ rule: 'Match Init'
     Wait(5);
     SetMatchTime(0);
     Wait(18);
-    SetSlowMotion(12.5);
+    SetSlowMotion(10);
     Wait(2);
 
     //spawn dummy next to slot 1 (teammate)
@@ -263,7 +277,9 @@ rule: 'AI bot'
 Event.OngoingPlayer
 if (IsDummyBot(EventPlayer()))
 {
-    aiTime += 0.016;
+    if (!runSlow) {
+        aiTime += 0.016;
+    }
     Wait(0.016);
     Loop();
 }
@@ -278,7 +294,7 @@ if (IsUsingAbility2(EventPlayer()))
 //get the health that could be recovered by ability
 Number getRecoverableHealth(define position) {
     if (IsUsingAbility2() && DistanceBetween(healingLocation, position) < 4) {
-        return (MaxHealth(EventPlayer()) - Health(EventPlayer())) / MaxHealth(EventPlayer());
+        return (MaxHealth(EventPlayer()) - Health(EventPlayer())) / MaxHealth(EventPlayer()) / 10;
     } else {
         return 0;
     }
@@ -304,50 +320,53 @@ Number[] getInputs(define position) 'get inputs' {
     define bonusActions = [];
     //set inputs
     LogToInspector(1);
-    inputs = Append(inputs, [Health(EventPlayer()) / MaxHealth(EventPlayer()),
-                            Ammo(EventPlayer()) / MaxAmmo(EventPlayer()),
-                            AbilityCooldown(EventPlayer(), Button.Ability2) / 18,
-                            UltimateChargePercent(EventPlayer()) / 100,
-                            DistanceBetween(position, EventPlayer()) / 30,
-                            DistanceBetween(position, pfDestination) / 30,
-                            DistanceBetween(ObjectivePosition(ObjectiveIndex()), EventPlayer()) / 80,
-                            (PositionOf(EventPlayer()).Y - ObjectivePosition().Y) / 10]);
+    inputs = Append(inputs, [Health(EventPlayer()) / MaxHealth(EventPlayer()) / 10,
+                            Ammo(EventPlayer()) / MaxAmmo(EventPlayer()) / 10,
+                            AbilityCooldown(EventPlayer(), Button.Ability2) / 180,
+                            UltimateChargePercent(EventPlayer()) / 1000,
+                            DistanceBetween(position, EventPlayer()) / 300,
+                            DistanceBetween(position, pfDestination) / 300,
+                            DistanceBetween(ObjectivePosition(ObjectiveIndex()), EventPlayer()) / 800,
+                            (PositionOf(EventPlayer()).Y - ObjectivePosition().Y) / 100]);
     LogToInspector(1);
     for (define i = 0; i < CountOf(players); i++) {
-        inputs = Append(inputs, [Health(players[i]) / MaxHealth(players[i]),
-                                (IsAlive(players[i]) && IsInLineOfSight(position, players[i], BarrierLOS.NoBarriersBlock)) ? 1 : -1,
-                                DistanceBetween(position, players[i]) / 50,
-                                (DistanceBetween(position, players[i].positionTracking[0]) - DistanceBetween(position, players[i])) / 30,
-                                IsUsingUltimate(players[i]) ? 1 : -1,
-                                AbsoluteValue(HorizontalAngleTowards(players[i], position)) / 180]);
-        if (HeroOf(players[i]) == Hero.Orisa) {
-            inputs = Append(inputs, [IsUsingAbility1(players[i]) ? 1 : -1,
-                                    IsUsingAbility2(players[i]) ? 1 : -1,
-                                    AbilityCooldown(players[i], Button.SecondaryFire) / 6]);
-        }
-        else if (HeroOf(players[i]) == Hero.Mercy) {
-            inputs = Append(inputs, [AbilityCooldown(players[i], Button.Ability2) / 30]);
-        }
-        else if (HeroOf(players[i]) == Hero.Soldier76) {
-            inputs = Append(inputs, [AbilityCooldown(players[i], Button.SecondaryFire) / 6]);
+        inputs = Append(inputs, [Health(players[i]) / MaxHealth(players[i]) / 10,
+                                (IsAlive(players[i]) && IsInLineOfSight(position, players[i], BarrierLOS.NoBarriersBlock)) ? 0.1 : -0.1,
+                                IsAlive(players[i]) ? 0.1 : -0.1,
+                                DistanceBetween(position, players[i]) / 1000,
+                                (DistanceBetween(position, players[i].positionTracking[0]) - DistanceBetween(position, players[i])) / 300,
+                                IsUsingUltimate(players[i]) ? 0.1 : -0.1,
+                                AbsoluteValue(HorizontalAngleTowards(players[i], position)) / 1800]);
+        if (TeamOf(players[i]) == Team.Team2) {
+            if (HeroOf(players[i]) == Hero.Orisa) {
+                inputs = Append(inputs, [IsUsingAbility1(players[i]) ? 0.1 : -0.1,
+                                        IsUsingAbility2(players[i]) ? 0.1 : -0.1,
+                                        AbilityCooldown(players[i], Button.SecondaryFire) / 60]);
+            }
+            else if (HeroOf(players[i]) == Hero.Mercy) {
+                inputs = Append(inputs, [AbilityCooldown(players[i], Button.Ability2) / 300]);
+            }
+            else if (HeroOf(players[i]) == Hero.Soldier76) {
+                inputs = Append(inputs, [AbilityCooldown(players[i], Button.SecondaryFire) / 60]);
+            }
         }
     }
     LogToInspector(2);
     //sprinting to location
-    extraInputs = Append(extraInputs, [[-1, -1, -1, 1, getRecoverableHealth(position), -1]]);
+    extraInputs = Append(extraInputs, [[-0.1, -0.1, -0.1, 0.1, getRecoverableHealth(position), -0.1]]);
     targets = Append(targets, null);
     bonusActions = Append(bonusActions, BonusAction.Sprint);
 
     //heal
     if (AbilityCooldown(EventPlayer(), Button.Ability2) == 0) {
-        extraInputs = Append(extraInputs, [[-1, -1, -1, -1, (MaxHealth(EventPlayer()) - Health(EventPlayer())) / MaxHealth(EventPlayer()), -1]]);
+        extraInputs = Append(extraInputs, [[-0.1, -0.1, -0.1, -0.1, (MaxHealth(EventPlayer()) - Health(EventPlayer())) / MaxHealth(EventPlayer()) / 10, -0.1]]);
         targets = Append(targets, null);
         bonusActions = Append(bonusActions, BonusAction.Heal);
     }
 
     //use ult
     if (UltimateChargePercent(EventPlayer()) == 100) {
-        extraInputs = Append(extraInputs, [[-1, -1, -1, -1, getRecoverableHealth(position), 1]]);
+        extraInputs = Append(extraInputs, [[-0.1, -0.1, -0.1, -0.1, getRecoverableHealth(position), 0.1]]);
         targets = Append(targets, null);
         bonusActions = Append(bonusActions, BonusAction.Ultimate);
     }
@@ -357,11 +376,13 @@ Number[] getInputs(define position) 'get inputs' {
     define enemiesInRadius = PlayersWithinRadius(position, 50, Team.Team2, RadiusLOS.SurfacesAndEnemyBarriers);
     if (CountOf(enemiesInRadius) != 0) {
         for (define i = 0; i < CountOf(enemiesInRadius); i++) {
-            define extraInput = [-1, -1, -1, -1, getRecoverableHealth(position), IsUsingUltimate(EventPlayer())];
-            extraInput[SlotOf(enemiesInRadius[i])] = 1;
-            extraInputs = Append(extraInputs, [extraInput]);
-            targets = Append(targets, enemiesInRadius[i]);
-            bonusActions = Append(bonusActions, BonusAction.None);
+            if (IsAlive(enemiesInRadius[i])) {
+                define extraInput = [-0.1, -0.1, -0.1, -0.1, getRecoverableHealth(position), IsUsingUltimate(EventPlayer()) ? 0.1 : -0.1];
+                extraInput[SlotOf(enemiesInRadius[i])] = 0.1;
+                extraInputs = Append(extraInputs, [extraInput]);
+                targets = Append(targets, enemiesInRadius[i]);
+                bonusActions = Append(bonusActions, BonusAction.None);
+            }
         }
     }
     LogToInspector(4);
@@ -475,18 +496,20 @@ Team.Team1
             handleBackprop(30);
             
             //set enemy and position targets
-            pfDestination = choicePositions[actionIndex];
-            aimTarget = choiceTargets[actionIndex];
-            extraAction = choiceActions[actionIndex];
-            if (aimTarget != null) {
-                StartFacing(EventPlayer(), DirectionTowards(EventPlayer(), aimTarget), 500, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
+            if (!runSlow) {
+                pfDestination = choicePositions[actionIndex];
+                aimTarget = choiceTargets[actionIndex];
+                extraAction = choiceActions[actionIndex];
+                if (aimTarget != null) {
+                    StartFacing(EventPlayer(), DirectionTowards(EventPlayer(), aimTarget), 500, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
+                }
+                else {
+                    StartFacing(EventPlayer(), DirectionTowards(EventPlayer(), pfWalkingToPosition + Vector(0, 0.2, 0)), 500, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
+                }
+                pastInputs = Append(pastInputs, [choiceInputs[actionIndex]]);
+                pastInputTimes = Append(pastInputTimes, 0);
+                pastInputRewards = Append(pastInputRewards, 0);
             }
-            else {
-                StartFacing(EventPlayer(), DirectionTowards(EventPlayer(), pfWalkingToPosition + Vector(0, 0.5, 0)), 500, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
-            }
-            pastInputs = Append(pastInputs, [choiceInputs[actionIndex]]);
-            pastInputTimes = Append(pastInputTimes, 0);
-            pastInputRewards = Append(pastInputRewards, 0);
             //end rule, run again next tick
         }
         //else if death
@@ -501,7 +524,11 @@ Team.Team1
         Wait(0.016);
     } 
     //while loop end (meaning first round has finished, so the simulation should end)
+    EnableInspectorRecording();
+    LogToInspector("finishing up...");
+    DisableInspectorRecording();
     handleBackprop(0);
+    Wait(0.016);
     finish();
 }
 
@@ -531,6 +558,11 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
             pastInputs = RemoveFromArrayAtIndex(pastInputs, indexesToRemove[i]);
             pastInputTimes = RemoveFromArrayAtIndex(pastInputTimes, indexesToRemove[i]);
             pastInputRewards = RemoveFromArrayAtIndex(pastInputRewards, indexesToRemove[i]);
+            for (define j = 0; j < CountOf(indexesToRemove); j++) {
+                if (indexesToRemove[j] > indexesToRemove[i]) {
+                    indexesToRemove[j] = indexesToRemove[j] - 1;
+                }
+            }
         }
 
         Wait(0.016);
@@ -567,23 +599,24 @@ void finish() 'Log results at end of match'
     LogToInspector("Team 2 Win: {0}".Format([TeamScore(Team.Team2)]));
     LogToInspector("Team 2 Score: {0}".Format([team2Score]));
     DestroyAllDummyBots();
-    //Prepare vars for export/import
-    w1Import1 = [];
-    w1Import2 = [];
-    w1Import3 = [];
-    w2Import = [];
-    //PLEASE ADJUST FOR ACTUAL NODE/WEIGHT COUNT AS NECESSARY
-    for (define i = 0; i < 30; i++)  {
-        w1Import1 = Append(w1Import1, [w1[i]]);
-    }
     Wait(0.016);
-    for (define i = 30; i < 53; i++)  {
-        w1Import2 = Append(w1Import2, [w1[i]]);
-    }
+    //Prepare vars for export/import
+    //PLEASE ADJUST FOR ACTUAL NODE/WEIGHT COUNT AS NECESSARY
+    w1Import1 = ArraySlice(w1, 0, 30);
+    w1Import2 = ArraySlice(w1, 30, 24);
     w2Import = w2;
+
+    LogToInspector("Finished!");
 
     Wait(10);
     SetMatchTime(999);
+}
+
+rule: 'bot runs slow at end of match'
+if (TeamScore(Team.Team1) != 0 || TeamScore(Team.Team2) != 0)
+{
+    runSlow = false;
+    SetSlowMotion(10);
 }
 
 rule: 'Bot start shooting'
@@ -715,7 +748,7 @@ Player.Slot0
 Team.Team1
 if (ControlModeScoringTeam() == Team.Team2)
 {
-    deltaReward -= 3;
+    deltaReward -= 2;
 }
 
 rule: 'Reward point taken'
@@ -723,7 +756,10 @@ Player.Slot0
 Team.Team1
 if (ControlModeScoringTeam() == Team.Team1)
 {
-    deltaReward += 3;
+    deltaReward += 1.5;
+    if (IsOnObjective(EventPlayer())) {
+        deltaReward += 1.5;
+    }
 }
 
 rule: 'Reward kill'

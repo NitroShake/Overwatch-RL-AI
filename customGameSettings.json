@@ -1,7 +1,13 @@
 {
     "Heroes": {
         "General": {
-            "Enabled Heroes": ["Orisa", "Soldier: 76", "Mercy"]
+            "Enabled Heroes": ["Orisa", "Soldier: 76", "Mercy"],
+            "General": {
+                "Ultimate Generation": 130
+            },
+            "Soldier: 76": {
+                "Ammunition Clip Size Scalar": 200
+            }
         }
     },
     "Lobby": {
