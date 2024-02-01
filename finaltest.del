@@ -1,0 +1,15 @@
+playervar define test;
+
+rule: 'ee'
+Event.OngoingPlayer
+{
+    CreateHudText(AllPlayers(), '{0} {1}'.Format([PositionOf(EventPlayer()), test]));
+}
+
+rule: 'tests'
+Event.OngoingPlayer
+{
+    test = PositionOf(EventPlayer()).X <= -321.3 && PositionOf(EventPlayer()).X >= -335.5 && PositionOf(EventPlayer()).Z <= 147.3 && PositionOf(EventPlayer()).Z >= 134;
+    Wait(0.016);
+    Loop();
+}

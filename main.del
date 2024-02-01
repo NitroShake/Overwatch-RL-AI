@@ -475,6 +475,28 @@ Team.Team1
                     }
                 }
             }
+            define isLandmarkActive = false;
+            if (idlePunishTimer >= 5) {
+                isLandmarkActive = true;
+                define closerPlayerSlot = 0;
+                if (DistanceBetween(EventPlayer(), PlayersInSlot(1, Team.Team1)) < DistanceBetween(EventPlayer(), PlayersInSlot(2, Team.Team1))){
+                    closerPlayerSlot = 1;
+                }
+                else {
+                    closerPlayerSlot = 2;
+                }
+                define input = getInputs(PositionOf(PlayersInSlot(closerPlayerSlot, Team.Team1)));
+                define extraInputs = input[1];
+                define baseInput = input[0];
+                choicePositions = Append(choicePositions, PositionOf(PlayersInSlot(closerPlayerSlot, Team.Team1)));
+                choiceInputs = Append(choiceInputs, [Append(baseInput, extraInputs[0])]);
+                choiceActions = Append(choiceActions, [input[3][0]]);
+                choiceTargets = Append(choiceTargets, [input[2][0]]);
+                Wait(0.016);
+                define values = optimisedFeedForward(baseInput, [extraInputs[0]]);
+                choiceValues = Append(choiceValues, values);
+            }
+
             //get the index of the state-action to be chosen.
             define positiveValues = numsToAllPositiveNums(choiceValues);
             define sumValues = sumArray(positiveValues);
@@ -485,6 +507,10 @@ Team.Team1
             while (probability <= rand && actionIndex < CountOf(positiveValues)) {
                 actionIndex++;
                 probability += positiveValues[actionIndex] / sumValues;
+            }
+            define backPropAction = true;
+            if (isLandmarkActive && actionIndex == CountOf(positiveValues) - 1) {
+                backPropAction = false;
             }
             if (actionIndex == CountOf(positiveValues)) {
                 EnableInspectorRecording();
@@ -507,9 +533,11 @@ Team.Team1
                 else {
                     StartFacing(EventPlayer(), DirectionTowards(EventPlayer(), pfWalkingToPosition + Vector(0, 0.2, 0)), 500, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
                 }
-                pastInputs = Append(pastInputs, [choiceInputs[actionIndex]]);
-                pastInputTimes = Append(pastInputTimes, 0);
-                pastInputRewards = Append(pastInputRewards, 0);
+                if (backPropAction) {
+                    pastInputs = Append(pastInputs, [choiceInputs[actionIndex]]);
+                    pastInputTimes = Append(pastInputTimes, 0);
+                    pastInputRewards = Append(pastInputRewards, 0);
+                }
             }
             //end rule, run again next tick
         }
@@ -797,19 +825,19 @@ rule: 'Punish idle'
 Event.OngoingPlayer
 Team.Team1
 Player.Slot0
-if (idlePunishTimer >= 30)
+if (idlePunishTimer >= 20)
 {
-    deltaReward -= 0.025;
-    idlePunishTimer = 29;
+    deltaReward -= 0.06;
+    idlePunishTimer = 18;
 }
 
 rule: 'Lower idle punisher when in LOS of teammates'
 Event.OngoingPlayer
 Team.Team1
 Player.Slot0
-if (idlePunishTimer >= 20 && (IsInLineOfSight(EventPlayer(), PlayersInSlot(1, Team.Team1)) || IsInLineOfSight(EventPlayer(), PlayersInSlot(1, Team.Team1))))
+if (idlePunishTimer >= 15 && (IsInLineOfSight(EventPlayer(), PlayersInSlot(1, Team.Team1)) || IsInLineOfSight(EventPlayer(), PlayersInSlot(1, Team.Team1))))
 {
-    idlePunishTimer = 10;
+    idlePunishTimer = 0;
 }
 
 rule: 'track positioning'
