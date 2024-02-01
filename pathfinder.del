@@ -63,7 +63,7 @@ void pfTick() "【PF Core Subroutine】☞ Tick"
         MinWait();
         WaitUntil(Max(ServerLoadAverage(), ServerLoad()) < 255, 0.25);
         # This determines the pathfinding budget for the current tick.
-        pfIterationsThisTick = (Max(ServerLoadAverage(), ServerLoad()) < 230) + (Max(ServerLoadAverage(), ServerLoad()) < 180) * 2 + 2;
+        pfIterationsThisTick = (Max(ServerLoadAverage(), ServerLoad()) < 230) + (Max(ServerLoadAverage(), ServerLoad()) < 180) * 2 + 3;
     }
 }
 

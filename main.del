@@ -21,6 +21,7 @@ globalvar define team2Score = 0;
 playervar define dmgPercent; //dmg multiplier (in percent) for primary fire (compensating for near-perfect aim)
 globalvar define totalLoss = 0;
 globalvar define lossCount = 0;
+globalvar define idlePunishTimer = 0;
 rule: 'assignDmgPercent'
 Event.OngoingPlayer
 {
@@ -69,6 +70,9 @@ rule: 'init weights'
         w1 = Append(w1, w1Import1);
         w1 = Append(w1, w1Import2);
         w2 = w2Import;
+        EnableInspectorRecording();
+        LogToInspector("Weights imported");
+        DisableInspectorRecording();
     }
     else {
         //PLEASE ADJUST FOR ACTUAL NODE/WEIGHT COUNT AS NECESSARY
@@ -111,9 +115,6 @@ Number feedForward(define inputs) 'feed-forward'
             //LogToInspector(w1[j][i]);
         }
     }
-    if (runSlow) {
-        Wait(0.016);
-    }
     //LogToInspector(layer1);
 
     Wait(0.016);
@@ -150,9 +151,9 @@ define optimisedFeedForward(define inputs, define extraInputs) 'optimised feed-f
             layer1[i] += inputs[j] * w1[j][i];
             baseWeightI = j;
         }
-    }
-    if (runSlow) {
-        Wait(0.016);
+        if (runSlow && i % 10 == 0) {
+            Wait(0.016);
+        }
     }
 
     Wait(0.016);
@@ -172,17 +173,16 @@ define optimisedFeedForward(define inputs, define extraInputs) 'optimised feed-f
                 //LogToInspector('multiplying {0} by {1}'.Format([extraInputs[i][k], w1[baseWeightI + 1 + k][j]]));
             }
         }
+
         if (runSlow) {
             Wait(0.016);
         }
-
         for (define j = 0; j < CountOf(layer1); j++) {
             hiddenLayer[j] = tanh(hiddenLayer[j]);
         } 
         if (runSlow) {
             Wait(0.016);
         }
-
         //LogToInspector('hidden layer: {0} | {1}'.Format([hiddenLayer[0], hiddenLayer[1]]));
 
         //forward hidden layer to output node
@@ -224,7 +224,7 @@ void backPropagate(define inputs, define actualValue) 'Back-propagation'
     for (define i = 0; i < CountOf(w2); i++) {
         hlLosses = Append(hlLosses, w2[i] * loss * tanhDerivative(lastLayer1[i]));
         w2[i] = w2[i] - (learningRate * lastLayer1[i] * loss);
-        if (runSlow) {
+        if (runSlow && i % 10 == 0) {
             Wait(0.016);
         }
     }
@@ -236,7 +236,7 @@ void backPropagate(define inputs, define actualValue) 'Back-propagation'
             weights[i] = weights[i] - (learningRate * inputs[j] * hlLosses[i]);
         }
         w1[j] = weights;
-        if (runSlow) {
+        if (runSlow && j % 10 == 0) {
             Wait(0.016);
         }
     }
@@ -266,21 +266,22 @@ rule: 'Match Init'
     Wait(5);
     SetMatchTime(0);
     Wait(18);
-    SetSlowMotion(10);
+    SetSlowMotion(11.11);
     Wait(2);
 
     //spawn dummy next to slot 1 (teammate)
     CreateDummyBot(Hero.Soldier76, Team.Team1, 0, PlayersInSlot(1, Team.Team1));
 }
 
-rule: 'AI bot'
+rule: 'AI timers'
 Event.OngoingPlayer
 if (IsDummyBot(EventPlayer()))
 {
     if (!runSlow) {
-        aiTime += 0.016;
+        aiTime += 1;
+        idlePunishTimer += 1;
     }
-    Wait(0.016);
+    Wait(1);
     Loop();
 }
 
@@ -399,7 +400,7 @@ Number[] numsToAllPositiveNums(define array) {
     }
     lowestNumber--;
     for (define i = 0; i < CountOf(array); i++) {
-        array[i] = array[i] - lowestNumber;
+        array[i] = RaiseToPower(array[i] - lowestNumber, 2);
     }
     return array;
 }
@@ -501,7 +502,7 @@ Team.Team1
                 aimTarget = choiceTargets[actionIndex];
                 extraAction = choiceActions[actionIndex];
                 if (aimTarget != null) {
-                    StartFacing(EventPlayer(), DirectionTowards(EventPlayer(), aimTarget), 500, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
+                    StartFacing(EventPlayer(), DirectionTowards(EventPlayer(), PositionOf(aimTarget) - Vector(0, 0.35, 0)), 999, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
                 }
                 else {
                     StartFacing(EventPlayer(), DirectionTowards(EventPlayer(), pfWalkingToPosition + Vector(0, 0.2, 0)), 500, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
@@ -525,7 +526,7 @@ Team.Team1
     } 
     //while loop end (meaning first round has finished, so the simulation should end)
     EnableInspectorRecording();
-    LogToInspector("finishing up...");
+    LogToInspector("almost done...");
     DisableInspectorRecording();
     handleBackprop(0);
     Wait(0.016);
@@ -541,7 +542,7 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
             pastInputTimes[i] += deltaTime;
 
             //add reward to the input, where 0.9 is the discount rate
-            pastInputRewards[i] += deltaReward * RaiseToPower(0.9, pastInputTimes[i]);
+            pastInputRewards[i] += deltaReward * RaiseToPower(0.85, pastInputTimes[i]);
 
             //if the input was made more than inputLifespan secs ago, backpropagate using the value accumulated since then
             if (inputLifespan != -1 && pastInputTimes[i] >= inputLifespan) {
@@ -581,6 +582,7 @@ void finish() 'Log results at end of match'
 
     LogToInspector('Match time (seconds): {0}'.Format([aiTime]));
     LogToInspector('NN average loss : {0}'.Format([totalLoss / lossCount]));
+    LogToInspector('NN loss count : {0}'.Format([lossCount]));
     LogToInspector('stats formatted as: damage/heals/kills/deaths/ultimatedmg/rocketdmg');
     LogToInspector('AI stats: {0}, {1}, {2}'.Format([aiSoldier.dmgDealtStat, aiSoldier.healingStat, aiSoldier.eliminationStat]));
     LogToInspector('AI cont: {0}, {1}, {2}'.Format([aiSoldier.deathStat, aiSoldier.ultimateDmgStat, aiSoldier.rocketDmgStat]));
@@ -615,8 +617,11 @@ void finish() 'Log results at end of match'
 rule: 'bot runs slow at end of match'
 if (TeamScore(Team.Team1) != 0 || TeamScore(Team.Team2) != 0)
 {
-    runSlow = false;
+    runSlow = true;
     SetSlowMotion(10);
+    EnableInspectorRecording();
+    LogToInspector("Finishing...");
+    DisableInspectorRecording();
 }
 
 rule: 'Bot start shooting'
@@ -662,11 +667,12 @@ rule: 'track damage'
 Event.OnDamageDealt
 Player.Soldier76
 {
+    idlePunishTimer = 0;
     if (EventAbility() == Button.PrimaryFire) {
         dmgDealtStat += EventDamage();
     }
     else if (EventAbility() == Button.SecondaryFire) {
-        rocketDmgStat += EventDamage() / (dmgPercent / 100);
+        rocketDmgStat += (EventDamage() / 100) * (100 - dmgPercent);
     }
     else if (EventAbility() == Button.Ultimate) {
         ultimateDmgStat += EventDamage();
@@ -678,14 +684,14 @@ Event.OnHealingDealt
 Player.Soldier76
 {
     healingStat += EventHealing();
-    deltaReward += EventHealing() * 0.01;
+    deltaReward += EventHealing() * 0.002;
 }
 
 rule: 'track heal'
 Event.OnHealingTaken
 Player.Soldier76
 {
-    deltaReward += EventHealing() * 0.01;
+    deltaReward += EventHealing() * 0.006;
 }
 
 rule: 'track elim'
@@ -723,7 +729,7 @@ rule: 'AI deal extra damage to offset nerf'
 Event.OnDamageDealt
 if (IsDummyBot(EventPlayer()) && EventAbility() == Button.SecondaryFire && dmgPercent != 100)
 {
-    Damage(Victim(), EventPlayer(), EventDamage() / (dmgPercent / 100));
+    Damage(Victim(), EventPlayer(), (EventDamage() / 100) * (100 - dmgPercent));
 }
 
 rule: 'deltaTime update'
@@ -743,12 +749,12 @@ Team.Team1
     deltaReward += EventDamage() * 0.01;
 }
 
-rule: 'Reward point lost'
+rule: 'Punish point lost'
 Player.Slot0
 Team.Team1
 if (ControlModeScoringTeam() == Team.Team2)
 {
-    deltaReward -= 2;
+    deltaReward -= 1;
 }
 
 rule: 'Reward point taken'
@@ -770,20 +776,40 @@ Team.Team1
     deltaReward += 0.5;
 }
 
-rule: 'Reward damage'
+rule: 'Punish damage taken'
 Event.OnDamageTaken
 Player.Slot0
 Team.Team1
 {
-    deltaReward -= EventDamage() * 0.01;
+    idlePunishTimer = 0;
+    deltaReward -= EventDamage() * 0.006;
 }
 
-rule: 'Reward damage'
+rule: 'Punish death'
 Event.OnDeath
 Player.Slot0
 Team.Team1
 {
-    deltaReward -= EventDamage() * 0.01;
+    deltaReward -= 0.3;
+}
+
+rule: 'Punish idle'
+Event.OngoingPlayer
+Team.Team1
+Player.Slot0
+if (idlePunishTimer >= 30)
+{
+    deltaReward -= 0.025;
+    idlePunishTimer = 29;
+}
+
+rule: 'Lower idle punisher when in LOS of teammates'
+Event.OngoingPlayer
+Team.Team1
+Player.Slot0
+if (idlePunishTimer >= 20 && (IsInLineOfSight(EventPlayer(), PlayersInSlot(1, Team.Team1)) || IsInLineOfSight(EventPlayer(), PlayersInSlot(1, Team.Team1))))
+{
+    idlePunishTimer = 10;
 }
 
 rule: 'track positioning'

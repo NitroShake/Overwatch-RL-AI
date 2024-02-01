@@ -3,7 +3,8 @@
         "General": {
             "Enabled Heroes": ["Orisa", "Soldier: 76", "Mercy"],
             "General": {
-                "Ultimate Generation": 130
+                "Ultimate Generation": 200,
+                "Healing Dealt": 80
             },
             "Soldier: 76": {
                 "Ammunition Clip Size Scalar": 200
@@ -22,7 +23,7 @@
             "Enabled": true,
             "Enabled Maps": ["Busan"],
             "Limit Valid Control Points": "Second",
-            "Scoring Speed Modifier": 120
+            "Scoring Speed Modifier": 170
         }
     }
 }
