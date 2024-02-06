@@ -4,6 +4,7 @@ rule: 'ee'
 Event.OngoingPlayer
 {
     CreateHudText(AllPlayers(), '{0} {1}'.Format([PositionOf(EventPlayer()), test]));
+    CreateHudText(AllPlayers(), '{0}'.Format([ObjectivePosition(1)]));
 }
 
 rule: 'tests'
