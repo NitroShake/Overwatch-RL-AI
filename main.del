@@ -11,6 +11,7 @@ globalvar define deltaTime = 0;
 globalvar define pastInputs = [];
 globalvar define pastInputTimes = [];
 globalvar define pastInputRewards = [];
+globalvar define pastInputHasAction = [];
 globalvar define aiTime = 0;
 playervar define aimTarget = null;
 playervar define extraAction = null;
@@ -23,6 +24,8 @@ globalvar define totalLoss = 0;
 globalvar define lossCount = 0;
 globalvar define idlePunishTimer = 0;
 playervar define isSpedUp = false;
+playervar define dmgTakenFromAgent = 0;
+globalvar define inputResults = []; //formatted as [[inputs1], value1, [inputs2], value2...]
 rule: 'assignDmgPercent'
 Event.OngoingPlayer
 {
@@ -98,7 +101,7 @@ rule: 'init weights'
 //NEURAL NETWORK BEGINS HERE
 //this could be bundled into a class, but classes are merely an abstraction that place their instance's vars into a shared array
 //this effectively makes the weights a 3d array, which would kill performance
-globalvar define learningRate = 0.004;
+globalvar define learningRate = 0.005;
 globalvar define w1;
 globalvar define w2;   
 globalvar define lastLayer1;
@@ -206,7 +209,7 @@ Number tanh(define x)
 {
     define e2x = RaiseToPower(e, 2*x);
     return (e2x - 1) / (e2x + 1);
-    return x;
+    //return x;
 }
 
 Number tanhDerivative(define x) {
@@ -251,6 +254,8 @@ rule: 'Match Init'
     //track server load
     CreateHudText(AllPlayers(), '{0} {1} {2}'.Format([ServerLoad(), ServerLoadAverage(), ServerLoadPeak()]),
     null, null, Location.Left, 1, Color.White, Color.Aqua, Color.Aqua, HudTextRev.VisibleToAndString, Spectators.VisibleAlways);
+    CreateHudText(AllPlayers(), '{0} | {1}'.Format([aiTime, idlePunishTimer]),
+    null, null, Location.Left, 1, Color.White, Color.Aqua, Color.Aqua, HudTextRev.VisibleToAndString, Spectators.VisibleAlways);
     //these two are crucial for performance - server crashes at regular speed, and
     //client crashes if inspector recording is enabled (too many step-throughs)
     
@@ -269,7 +274,7 @@ rule: 'Match Init'
     if (spawnInFight) {
         SetMatchTime(0);
         Wait(18);
-        SetSlowMotion(11.11);
+        SetSlowMotion(10);
         Wait(2);
 
         //spawn dummy next to slot 1 (teammate)
@@ -277,7 +282,7 @@ rule: 'Match Init'
         Wait(2);
     }
     else {
-        SetSlowMotion(11.11);
+        SetSlowMotion(10);
         Wait(2);
         CreateDummyBot(Hero.Soldier76, Team.Team1, 0, PlayersInSlot(1, Team.Team1));
         Wait(2);
@@ -339,8 +344,8 @@ Number[] getInputs(Vector position) 'get inputs' {
                             UltimateChargePercent(EventPlayer()) / 1000,
                             DistanceBetween(position, EventPlayer()) / 300,
                             DistanceBetween(position, pfDestination) / 300,
-                            DistanceBetween(ObjectivePosition(ObjectiveIndex()), EventPlayer()) / 800,
-                            (PositionOf(EventPlayer()).Y - ObjectivePosition(ObjectiveIndex()).Y) / 100,
+                            DistanceBetween(ObjectivePosition(ObjectiveIndex()), position) / 800,
+                            (position.Y - ObjectivePosition(ObjectiveIndex()).Y) / 100,
                             (position.X <= -321.3 && position.X >= -335.5 && position.Z <= 147.3 && position.Z >= 134) ? 0.1 : -0.1]);
     LogToInspector(1);
     for (define i = 0; i < CountOf(players); i++) {
@@ -413,11 +418,11 @@ Number[] numsToAllPositiveNums(define array) {
     }
     lowestNumber--;
     define power;
-    if (idlePunishTimer >= 5) {
-        power = 6;
+    if (idlePunishTimer >= 4) {
+        power = 7;
     }
     else {
-        power = 2;
+        power = 5;
     }
     for (define i = 0; i < CountOf(array); i++) {
         array[i] = RaiseToPower(array[i] - lowestNumber, power);
@@ -440,7 +445,7 @@ Team.Team1
 {
     Wait(2);
     StartHoldingButton(EventPlayer(), Button.Ability1);
-    while (TeamScore(Team.Team1) == 0 && TeamScore(Team.Team2) == 0) {
+    while (aiTime < 330) {
         if (IsAlive(EventPlayer())) {
             define choicePositions = [];
             define choiceTargets = [];
@@ -554,8 +559,8 @@ Team.Team1
             Wait(0.016);
 
             handleBackprop(30);
-            EnableInspectorRecording();
-            DisableInspectorRecording();
+            //EnableInspectorRecording();
+            //DisableInspectorRecording();
             
             //set enemy and position targets
             if (!runSlow) {
@@ -563,19 +568,25 @@ Team.Team1
                 aimTarget = choiceTargets[actionIndex];
                 extraAction = choiceActions[actionIndex];
                 if (aimTarget != null) {
-                    StartFacing(EventPlayer(), DirectionTowards(EventPlayer(), PositionOf(aimTarget) - Vector(0, 0.35, 0)), 9999, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
+                    //StartFacing(EventPlayer(), DirectionTowards(EventPlayer(), PositionOf(aimTarget) - Vector(0, 0.35, 0)), 9999, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
                     isSpedUp = true;
                 }
                 else {
                     if (!IsUsingAbility1(EventPlayer())) {
                         StartHoldingButton(EventPlayer(), Button.Ability1);
                     }
-                    pfLookAtDestination();
+                    //pfLookAtDestination();
                 }
                 if (backPropAction) {
                     pastInputs = Append(pastInputs, [choiceInputs[actionIndex]]);
                     pastInputTimes = Append(pastInputTimes, 0);
                     pastInputRewards = Append(pastInputRewards, 0);
+                    if (aimTarget == null && (extraAction == BonusAction.None || extraAction == BonusAction.Sprint)) {
+                        pastInputHasAction = Append(pastInputHasAction, false);
+                    }
+                    else {
+                        pastInputHasAction = Append(pastInputHasAction, true);
+                    }
                 }
             }
             //end rule, run again next tick
@@ -611,13 +622,19 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
             pastInputTimes[i] += deltaTime;
 
             //add reward to the input, where 0.9 is the discount rate
-            pastInputRewards[i] += deltaReward * RaiseToPower(0.8, pastInputTimes[i]);
+            if (pastInputHasAction[i]) {
+                pastInputRewards[i] += deltaReward * RaiseToPower(0.8, pastInputTimes[i]);
+            }
+            else {
+                pastInputRewards[i] += deltaReward * RaiseToPower(0.5, pastInputTimes[i]);
+            }
 
             //if the input was made more than inputLifespan secs ago, backpropagate using the value accumulated since then
             if (inputLifespan != -1 && pastInputTimes[i] >= inputLifespan) {
                 backPropagate(pastInputs[i], pastInputRewards[i]);
                 indexesToRemove = Append(indexesToRemove, i);
                 Wait(0.016);
+                inputResults = Append(inputResults, [pastInputs[i], pastInputRewards[i]]);
             }
         }
 
@@ -626,6 +643,7 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
             pastInputs = RemoveFromArrayAtIndex(pastInputs, indexesToRemove[i]);
             pastInputTimes = RemoveFromArrayAtIndex(pastInputTimes, indexesToRemove[i]);
             pastInputRewards = RemoveFromArrayAtIndex(pastInputRewards, indexesToRemove[i]);
+            pastInputHasAction = RemoveFromArrayAtIndex(pastInputHasAction, indexesToRemove[i]);
             for (define j = 0; j < CountOf(indexesToRemove); j++) {
                 if (indexesToRemove[j] > indexesToRemove[i]) {
                     indexesToRemove[j] = indexesToRemove[j] - 1;
@@ -642,11 +660,13 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
 
 void finish() 'Log results at end of match'
 {
-    SetSlowMotion(10);
     EnableInspectorRecording();
+    EnableInspectorRecording();
+    Wait(0.016);
     define aiSoldier = PlayersOnHero(Hero.Soldier76, Team.Team1)[0];
     define enemySoldier = PlayersOnHero(Hero.Soldier76, Team.Team2)[0];
 
+    EnableInspectorRecording();
     LogToInspector('Match time (seconds): {0}'.Format([aiTime]));
     LogToInspector('NN average loss : {0}'.Format([totalLoss / lossCount]));
     LogToInspector('NN loss count : {0}'.Format([lossCount]));
@@ -663,10 +683,12 @@ void finish() 'Log results at end of match'
     LogToInspector('assurance cont: {0} {1}'.Format([PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.Deaths),
                                                     PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.WeaponAccuracy)]));
     Wait(0.016);
+    EnableInspectorRecording();
     LogToInspector("Team 1 Win: {0}".Format([TeamScore(Team.Team1)]));
     LogToInspector("Team 1 Score: {0}".Format([team1Score]));
     LogToInspector("Team 2 Win: {0}".Format([TeamScore(Team.Team2)]));
     LogToInspector("Team 2 Score: {0}".Format([team2Score]));
+    Wait(5);
     DestroyAllDummyBots();
     Wait(0.016);
     //Prepare vars for export/import
@@ -709,6 +731,7 @@ rule: 'Bot start shooting'
 Event.OngoingPlayer
 if (IsDummyBot(EventPlayer()) && aimTarget != null && IsInLineOfSight(EventPlayer(), aimTarget, BarrierLOS.EnemyBarriersBlock))
 {
+    StartFacing(EventPlayer(), DirectionTowards(EventPlayer(), PositionOf(aimTarget) - Vector(0, 0.35, 0)), 9999, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
     StopHoldingButton(EventPlayer(), Button.Ability1);
     StartHoldingButton(EventPlayer(), Button.PrimaryFire);
 }
@@ -717,6 +740,7 @@ rule: 'Bot stop shooting'
 Event.OngoingPlayer
 if (IsDummyBot(EventPlayer()) && (aimTarget == null || !IsInLineOfSight(EventPlayer(), aimTarget, BarrierLOS.EnemyBarriersBlock)))
 {
+    pfLookAtDestination();
     StopHoldingButton(EventPlayer(), Button.PrimaryFire);
     StartHoldingButton(EventPlayer(), Button.Ability1);
 }
@@ -765,10 +789,10 @@ Event.OnHealingDealt
 Player.Soldier76
 {
     healingStat += EventHealing();
-    deltaReward += EventHealing() * 0.005;
+    deltaReward += EventHealing() * 0.01;
 }
 
-rule: 'track/reward heal'
+rule: 'reward heal'
 Event.OnHealingTaken
 Player.Soldier76
 {
@@ -828,7 +852,7 @@ Player.Slot0
 Team.Team1
 {
     idlePunishTimer = 0;
-    deltaReward += EventDamage() * 0.04; //was 0.01
+    deltaReward += EventDamage() * 0.015; //was 0.01
 }
 
 rule: 'Punish point lost'
@@ -836,7 +860,7 @@ Player.Slot0
 Team.Team1
 if (ControlModeScoringTeam() == Team.Team2)
 {
-    deltaReward -= 1.25; //was 1.5
+    deltaReward -= 1.5; //was 1.5
 }
 
 rule: 'Reward point taken'
@@ -845,9 +869,9 @@ Team.Team1
 if (ControlModeScoringTeam() == Team.Team1)
 {
     //was 1.5 each
-    deltaReward += 0.4;
+    deltaReward += 1;
     if (IsOnObjective(EventPlayer())) {
-        deltaReward += 1.6;
+        deltaReward += 3;
     }
 }
 
@@ -856,7 +880,7 @@ Event.OnElimination
 Player.Slot0
 Team.Team1
 {
-    deltaReward += 0.5; //was 0.5
+    deltaReward += 1.6; //was 0.5
 }
 
 rule: 'Punish damage taken'
@@ -873,26 +897,26 @@ Event.OnDeath
 Player.Slot0
 Team.Team1
 {
-    deltaReward -= 1.2; //was 0.2
+    deltaReward -= 1.6; //was 0.2
 }
 
 rule: 'Punish idle'
 Event.OngoingPlayer
 Team.Team1
 Player.Slot0
-if (idlePunishTimer >= 30)
+if (idlePunishTimer >= 20)
 {
-    deltaReward -= 5;
-    idlePunishTimer = 28;
+    deltaReward -= 10;
+    idlePunishTimer = 18;
 }
 
 rule: 'Lower idle punisher when in LOS of teammates'
 Event.OngoingPlayer
 Team.Team1
 Player.Slot0
-if (idlePunishTimer >= 15 && (IsInLineOfSight(EventPlayer(), PlayersInSlot(1, Team.Team1)) || IsInLineOfSight(EventPlayer(), PlayersInSlot(2, Team.Team1)) || DistanceBetween(EventPlayer(), PlayersInSlot(1, Team.Team1)) < 20 || DistanceBetween(EventPlayer(), PlayersInSlot(2, Team.Team1)) < 20))
+if (idlePunishTimer > 10 && (IsInLineOfSight(EventPlayer(), PlayersInSlot(1, Team.Team1)) || IsInLineOfSight(EventPlayer(), PlayersInSlot(2, Team.Team1)) || DistanceBetween(EventPlayer(), PlayersInSlot(1, Team.Team1)) < 20 || DistanceBetween(EventPlayer(), PlayersInSlot(2, Team.Team1)) < 20))
 {
-    idlePunishTimer = 10;
+    idlePunishTimer = 5;
 }
 
 rule: 'track positioning'
@@ -914,4 +938,20 @@ rule: 'Update scores'
     }
     Wait(1);
     Loop();
+}
+
+rule: 'Team 2 dmg taken from soldier'
+Team.Team2
+Event.OnDamageTaken
+if (IsDummyBot(Attacker()))
+{
+    dmgTakenFromAgent += EventDamage();
+}
+
+rule: 'Punish enemy healing (undoing damage dealt)'
+Event.OnHealingTaken
+Team.Team2
+{
+    deltaReward -= Min(dmgTakenFromAgent, EventHealing()) * 0.01;
+    dmgTakenFromAgent = Max(0, dmgTakenFromAgent - EventHealing()); 
 }

@@ -10,7 +10,8 @@
                 "Health": 125
             },
             "Mercy": {
-                "Health": 125
+                "Health": 125,
+                "Secondary Fire": false
             }
         }
     },
@@ -26,7 +27,7 @@
             "Enabled": true,
             "Enabled Maps": ["Busan"],
             "Limit Valid Control Points": "Second",
-            "Scoring Speed Modifier": 140
+            "Scoring Speed Modifier": 10
         }
     }
 }
