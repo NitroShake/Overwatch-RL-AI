@@ -7,6 +7,16 @@ import 'customGameSettings.json';
 
 globalvar define e = 2.718281828;
 playervar define deltaReward = 0;
+playervar define deltaDamageDealtReward = 0;
+playervar define deltaDamageTakenReward = 0;
+playervar define deltaDamageLostByEnemyHealingReward = 0;
+playervar define deltaHealingReceivedReward = 0;
+playervar define deltaHealingDealtReward = 0;
+playervar define deltaObjectiveTakenReward = 0;
+playervar define deltaObjectiveLostReward = 0;
+playervar define deltaEliminationReward = 0;
+playervar define deltaEliminatedReward = 0;
+playervar define deltaIdleReward = 0;
 globalvar define choiceMaxSteps = 2;
 globalvar define choiceStepSize = 7.5;
 globalvar define deltaTime = 0;
@@ -365,6 +375,7 @@ Number[] getInputs(Vector position) 'get inputs' {
     define targets = [];
     define bonusActions = [];
     define inputsExtension = [];
+    define extraInputsExtension = [];
     //set inputs
     LogToInspector(1);
     inputs = Append(inputs, [Health(EventPlayer()) / MaxHealth(EventPlayer()) / 10,
@@ -439,17 +450,18 @@ Number[] getInputs(Vector position) 'get inputs' {
     for (define i = 0; i < CountOf(players); i++) {
         define losCheck = 0;
         if (IsAlive(PlayersInSlot(i, Team.Team2))) {
-            for (define j = -4; j <= 4; j+=2) {
-                for (define k = -4; k <= 4; k+=2)
-                if (IsInLineOfSight(EventPlayer(), EyePosition(players[i]) + Vector(j, 0, k))) {
-                    losCheck += 0.1/16;
+            for (define j = -6; j <= 6; j+=3) {
+                for (define k = -6; k <= 6; k+=3)
+                if (IsInLineOfSight(position, EyePosition(players[i]) + Vector(j, 0, k))) {
+                    losCheck += 0.1/25;
                 }
                 else if (!IsInLineOfSight(EyePosition(players[i]), EyePosition(players[i]) + Vector(j, 0, k))) {
-                    losCheck += 0.1/16;
+                    losCheck += 0.1/25;
                 }
             }
         }
         inputsExtension = Append(inputsExtension, losCheck);
+        
     }
 
     //is agent being healed by support
@@ -630,7 +642,7 @@ Team.Team1
                 if (backPropAction) {
                     pastInputs = Append(pastInputs, [choiceInputs[actionIndex]]);
                     pastInputTimes = Append(pastInputTimes, 0);
-                    pastInputRewards = Append(pastInputRewards, 0);
+                    pastInputRewards = Append(pastInputRewards, [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]);
                     if (aimTarget == null && (extraAction == BonusAction.None || extraAction == BonusAction.Sprint)) {
                         pastInputHasAction = Append(pastInputHasAction, false);
                     }
@@ -672,12 +684,24 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
             pastInputTimes[i] += deltaTime;
 
             //add reward to the input, where 0.9 is the discount rate
+            define rewardMulti;
             if (pastInputHasAction[i]) {
-                pastInputRewards[i] += deltaReward * RaiseToPower(0.8, pastInputTimes[i]);
+                rewardMulti = RaiseToPower(0.85, pastInputTimes[i]);
             }
             else {
-                pastInputRewards[i] += deltaReward * RaiseToPower(0.5, pastInputTimes[i]);
+                rewardMulti = RaiseToPower(0.6, pastInputTimes[i]);
             }
+            pastInputRewards[i][0] += rewardMulti * deltaReward;
+            pastInputRewards[i][1] += rewardMulti * deltaDamageDealtReward;
+            pastInputRewards[i][2] += rewardMulti * deltaDamageTakenReward;
+            pastInputRewards[i][3] += rewardMulti * deltaDamageLostByEnemyHealingReward;
+            pastInputRewards[i][4] += rewardMulti * deltaHealingReceivedReward;
+            pastInputRewards[i][5] += rewardMulti * deltaHealingDealtReward;
+            pastInputRewards[i][6] += rewardMulti * deltaObjectiveTakenReward;
+            pastInputRewards[i][7] += rewardMulti * deltaObjectiveLostReward;
+            pastInputRewards[i][8] += rewardMulti * deltaEliminationReward;
+            pastInputRewards[i][9] += rewardMulti * deltaEliminatedReward;
+            pastInputRewards[i][10] += rewardMulti * deltaIdleReward;
 
             //if the input was made more than inputLifespan secs ago, backpropagate using the value accumulated since then
             if (inputLifespan != -1 && pastInputTimes[i] >= inputLifespan) {
@@ -841,6 +865,7 @@ Player.Soldier76
 {
     healingStat += EventHealing();
     deltaReward += EventHealing() * 0.01;
+    deltaHealingDealtReward += EventHealing() * 0.01;
 }
 
 rule: 'reward heal'
@@ -848,6 +873,7 @@ Event.OnHealingTaken
 Player.Soldier76
 {
     deltaReward += EventHealing() * 0.01;
+    deltaHealingReceivedReward += EventHealing() * 0.01;
 }
 
 rule: 'track elim'
@@ -904,6 +930,7 @@ Team.Team1
 {
     idlePunishTimer = 0;
     deltaReward += EventDamage() * 0.015; //was 0.01
+    deltaDamageDealtReward += EventDamage() * 0.015;
 }
 
 rule: 'Punish point lost'
@@ -912,6 +939,7 @@ Team.Team1
 if (ControlModeScoringTeam() == Team.Team2)
 {
     deltaReward -= 1.5; //was 1.5
+    deltaObjectiveLostReward -= 1.5;
 }
 
 rule: 'Reward point taken'
@@ -921,8 +949,10 @@ if (ControlModeScoringTeam() == Team.Team1)
 {
     //was 1.5 each
     deltaReward += 1;
+    deltaObjectiveTakenReward += 1;
     if (IsOnObjective(EventPlayer())) {
         deltaReward += 3;
+        deltaObjectiveTakenReward += 3;
     }
 }
 
@@ -932,6 +962,7 @@ Player.Slot0
 Team.Team1
 {
     deltaReward += 1.6; //was 0.5
+    deltaEliminationReward += 1.6;
 }
 
 rule: 'Punish damage taken'
@@ -941,6 +972,7 @@ Team.Team1
 {
     idlePunishTimer = 0;
     deltaReward -= EventDamage() * 0.01;
+    deltaDamageTakenReward -= EventDamage() * 0.01;
 }
 
 rule: 'Punish death'
@@ -949,6 +981,7 @@ Player.Slot0
 Team.Team1
 {
     deltaReward -= 1.6; //was 0.2
+    deltaEliminatedReward -= 1.6;
 }
 
 rule: 'Punish idle'
@@ -958,6 +991,7 @@ Player.Slot0
 if (idlePunishTimer >= 20)
 {
     deltaReward -= 10;
+    deltaIdleReward -= 10;
     idlePunishTimer = 18;
 }
 
@@ -1015,6 +1049,8 @@ rule: 'Punish enemy healing (undoing damage dealt)'
 Event.OnHealingTaken
 Team.Team2
 {
-    deltaReward -= Min(dmgTakenFromAgent, EventHealing()) * 0.01;
+    //extension note: this was reduced from 
+    deltaReward -= Min(dmgTakenFromAgent, EventHealing()) * 0.0075;
+    deltaDamageLostByEnemyHealingReward -= Min(dmgTakenFromAgent, EventHealing()) * 0.0075;
     dmgTakenFromAgent = Max(0, dmgTakenFromAgent - EventHealing()); 
 }
