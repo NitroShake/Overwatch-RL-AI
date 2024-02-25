@@ -43,7 +43,7 @@ rule: 'assignDmgPercent'
 Event.OngoingPlayer
 {
     if (IsDummyBot(EventPlayer())) {
-        dmgPercent = 50;
+        dmgPercent = 60;
     } else {
         dmgPercent = 100;
     }
@@ -375,7 +375,6 @@ Number[] getInputs(Vector position) 'get inputs' {
     define targets = [];
     define bonusActions = [];
     define inputsExtension = [];
-    define extraInputsExtension = [];
     //set inputs
     LogToInspector(1);
     inputs = Append(inputs, [Health(EventPlayer()) / MaxHealth(EventPlayer()) / 10,
@@ -448,25 +447,57 @@ Number[] getInputs(Vector position) 'get inputs' {
 
     //extension:begin extended input collection
     for (define i = 0; i < CountOf(players); i++) {
-        define losCheck = 0;
+        define losChecks = [0, 0];
         if (IsAlive(PlayersInSlot(i, Team.Team2))) {
-            for (define j = -6; j <= 6; j+=3) {
-                for (define k = -6; k <= 6; k+=3)
-                if (IsInLineOfSight(position, EyePosition(players[i]) + Vector(j, 0, k))) {
-                    losCheck += 0.1/25;
-                }
-                else if (!IsInLineOfSight(EyePosition(players[i]), EyePosition(players[i]) + Vector(j, 0, k))) {
-                    losCheck += 0.1/25;
+            for (define r = 1; r <= CountOf(losChecks); r++) {
+                define rNodes = RaiseToPower((r*2) + 1, 2) - (RaiseToPower((r*2) - 1, 2));
+                for (define j = -3*r; j <= 3*r; j+=3) {
+                    for (define k = -3*r; k <= 3*r; k+=3) {
+                        if (AbsoluteValue(j) == 3*r || AbsoluteValue(k) == 3*r) {
+                            if (IsInLineOfSight(position, EyePosition(players[i]) + Vector(j, 0, k))) {
+                                losChecks[r - 1] += 0.1/rNodes;
+                            }
+                            else if (!IsInLineOfSight(EyePosition(players[i]), EyePosition(players[i]) + Vector(j, 0, k))) {
+                                losChecks[r - 1] += 0.1/rNodes;
+                            }
+                        }
+                    }
                 }
             }
         }
-        inputsExtension = Append(inputsExtension, losCheck);
-        
+        inputsExtension = Append(inputsExtension, losChecks);
+    }
+
+    for (define i = 0; i < CountOf(players); i++) {
+        define targetArray = [-0.1, -0.1, -0.1];
+        if (SlotOf(players[i].lastTargetedPlayer) != null && TeamOf(players[i].lastTargetedPlayer) == OppositeTeamOf(players[i])) {
+            targetArray[SlotOf(players[i].lastTargetedPlayer)] = 0.1;
+        }
+        inputsExtension = Append(inputsExtension, targetArray);    
+    }
+
+    for (define i = 0; i < CountOf(players); i++) {
+        define players2 = players;
+        players2 = RemoveFromArray(players2, players[i]);
+        players2 = Append(players2, EventPlayer());
+        for (define j = 0; j < CountOf(players2); i++) {
+            inputsExtension = Append(inputsExtension, [(IsAlive(players2[j]) && IsInLineOfSight(players2[j], players[i], BarrierLOS.NoBarriersBlock)) ? 0.1 : -0.1,
+                                DistanceBetween(players2[j], players[i]) / 1000,
+                                (DistanceBetween(players[i], players2[j].positionTracking[0]) - DistanceBetween(players[i], players2[j])) / 300,
+                                AbsoluteValue(HorizontalAngleTowards(players[i], PositionOf(players2[j]))) / 1800]);
+        }
+    }
+
+    for (define i = 0; i < CountOf(players); i++) {
+        inputsExtension = Append(inputsExtension, HorizontalAngleTowards(EventPlayer(), PositionOf(players[i])));
     }
 
     //is agent being healed by support
     inputsExtension = Append(inputsExtension, PlayersInSlot(2, Team.Team1).lastTargetedPlayer == EventPlayer() || 
-        (IsUsingUltimate(PlayersInSlot(2, Team.Team1)) && IsInLineOfSight(PlayersInSlot(2, Team.Team1))) ? 0.1 : -0.1);
+        (IsUsingUltimate(PlayersInSlot(2, Team.Team1)) && IsInLineOfSight(EventPlayer(), PlayersInSlot(2, Team.Team1))) ? 0.1 : -0.1);
+
+    inputsExtension = Append(inputsExtension, PlayersInSlot(2, Team.Team1).lastTargetedPlayer == PlayersInSlot(1, Team.Team1) || 
+        (IsUsingUltimate(PlayersInSlot(2, Team.Team1)) && IsInLineOfSight(PlayersInSlot(1, Team.Team1), PlayersInSlot(2, Team.Team1))) ? 0.1 : -0.1);
 
     return [inputs, extraInputs, targets, bonusActions, inputsExtension];
 }
@@ -514,6 +545,7 @@ Team.Team1
             define choiceInputs = [];
             define choiceValues = [];
             define choiceActions = [];
+            define choiceInputExtensions = [];
 
             //get the values of every possible state/action
             for (define i = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
@@ -543,7 +575,7 @@ Team.Team1
                     LogToInspector(CountOf(positions));
 
                     for (define posI = 0; posI < CountOf(positions); posI++) {
-                        define input = getInputs(positions[posI] + Vector(0, 0.5, 0));
+                        define input = getInputs(positions[posI] + Vector(0, 0.75, 0));
                         LogToInspector(CountOf(input));
                         LogToInspector("input");
                         define extraInputs = input[1];
@@ -551,6 +583,7 @@ Team.Team1
                         for (define k = 0; k < CountOf(input[1]); k++) {
                             choicePositions = Append(choicePositions, positions[posI]);
                             choiceInputs = Append(choiceInputs, [Append(baseInput, extraInputs[k])]);
+                            choiceInputExtensions = Append(choiceInputExtensions, [input[4]]);
                         }
                         choiceActions = Append(choiceActions, input[3]);
                         choiceTargets = Append(choiceTargets, input[2]);
@@ -643,6 +676,7 @@ Team.Team1
                     pastInputs = Append(pastInputs, [choiceInputs[actionIndex]]);
                     pastInputTimes = Append(pastInputTimes, 0);
                     pastInputRewards = Append(pastInputRewards, [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]);
+                    pastInputsExtension = Append(pastInputsExtension, [choiceInputExtensions[actionIndex]]);
                     if (aimTarget == null && (extraAction == BonusAction.None || extraAction == BonusAction.Sprint)) {
                         pastInputHasAction = Append(pastInputHasAction, false);
                     }
@@ -708,7 +742,7 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
                 backPropagate(pastInputs[i], pastInputs[i], pastInputRewards[i]);
                 indexesToRemove = Append(indexesToRemove, i);
                 Wait(0.016);
-                inputResults = Append(inputResults, [pastInputs[i], pastInputRewards[i]]);
+                inputResults = Append(inputResults, [Append(pastInputs[i], pastInputsExtension[i]), pastInputRewards[i]]);
             }
         }
 
@@ -718,6 +752,7 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
             pastInputTimes = RemoveFromArrayAtIndex(pastInputTimes, indexesToRemove[i]);
             pastInputRewards = RemoveFromArrayAtIndex(pastInputRewards, indexesToRemove[i]);
             pastInputHasAction = RemoveFromArrayAtIndex(pastInputHasAction, indexesToRemove[i]);
+            pastInputsExtension = RemoveFromArrayAtIndex(pastInputsExtension, indexesToRemove[i]);
             for (define j = 0; j < CountOf(indexesToRemove); j++) {
                 if (indexesToRemove[j] > indexesToRemove[i]) {
                     indexesToRemove[j] = indexesToRemove[j] - 1;
