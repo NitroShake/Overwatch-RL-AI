@@ -739,7 +739,7 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
 
             //if the input was made more than inputLifespan secs ago, backpropagate using the value accumulated since then
             if (inputLifespan != -1 && pastInputTimes[i] >= inputLifespan) {
-                backPropagate(pastInputs[i], pastInputs[i], pastInputRewards[i]);
+                backPropagate(pastInputs[i], pastInputs[i], pastInputRewards[i][0]);
                 indexesToRemove = Append(indexesToRemove, i);
                 Wait(0.016);
                 inputResults = Append(inputResults, [Append(pastInputs[i], pastInputsExtension[i]), pastInputRewards[i]]);
