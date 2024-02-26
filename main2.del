@@ -674,8 +674,8 @@ Team.Team1
                 }
                 if (backPropAction) {
                     pastInputs = Append(pastInputs, [choiceInputs[actionIndex]]);
-                    pastInputTimes = Append(pastInputTimes, 0);
-                    pastInputRewards = Append(pastInputRewards, [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]);
+                    pastInputTimes = Append(pastInputTimes, [[]]);
+                    pastInputRewards = Append(pastInputRewards, [[[], [], [], [], [], [], [], [], [], [], []]]);
                     pastInputsExtension = Append(pastInputsExtension, [choiceInputExtensions[actionIndex]]);
                     if (aimTarget == null && (extraAction == BonusAction.None || extraAction == BonusAction.Sprint)) {
                         pastInputHasAction = Append(pastInputHasAction, false);
@@ -715,31 +715,31 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
 
         //for each input
         for (define i = 0; i < CountOf(pastInputs); i++) {
-            pastInputTimes[i] += deltaTime;
+            pastInputTimes[i] = Append(pastInputTimes[i], pastInputTimes[i][CountOf(pastInputTimes[i]) - 1] + deltaTime);
 
             //add reward to the input, where 0.9 is the discount rate
             define rewardMulti;
             if (pastInputHasAction[i]) {
-                rewardMulti = RaiseToPower(0.85, pastInputTimes[i]);
+                rewardMulti = RaiseToPower(0.8, pastInputTimes[i]);
             }
             else {
-                rewardMulti = RaiseToPower(0.6, pastInputTimes[i]);
+                rewardMulti = RaiseToPower(0.5, pastInputTimes[i]);
             }
-            pastInputRewards[i][0] += rewardMulti * deltaReward;
-            pastInputRewards[i][1] += rewardMulti * deltaDamageDealtReward;
-            pastInputRewards[i][2] += rewardMulti * deltaDamageTakenReward;
-            pastInputRewards[i][3] += rewardMulti * deltaDamageLostByEnemyHealingReward;
-            pastInputRewards[i][4] += rewardMulti * deltaHealingReceivedReward;
-            pastInputRewards[i][5] += rewardMulti * deltaHealingDealtReward;
-            pastInputRewards[i][6] += rewardMulti * deltaObjectiveTakenReward;
-            pastInputRewards[i][7] += rewardMulti * deltaObjectiveLostReward;
-            pastInputRewards[i][8] += rewardMulti * deltaEliminationReward;
-            pastInputRewards[i][9] += rewardMulti * deltaEliminatedReward;
-            pastInputRewards[i][10] += rewardMulti * deltaIdleReward;
+            pastInputRewards[i][0] = Append(pastInputRewards[i][0], pastInputRewards[i][0][CountOf(pastInputRewards[i][0])-1] + (rewardMulti * deltaReward));
+            pastInputRewards[i][1] = Append(pastInputRewards[i][1], pastInputRewards[i][1][CountOf(pastInputRewards[i][1])-1] + (rewardMulti * deltaDamageDealtReward));
+            pastInputRewards[i][2] = Append(pastInputRewards[i][2], pastInputRewards[i][2][CountOf(pastInputRewards[i][2])-1] + (rewardMulti * deltaDamageTakenReward));
+            pastInputRewards[i][3] = Append(pastInputRewards[i][3], pastInputRewards[i][3][CountOf(pastInputRewards[i][3])-1] + (rewardMulti * deltaDamageLostByEnemyHealingReward));
+            pastInputRewards[i][4] = Append(pastInputRewards[i][4], pastInputRewards[i][4][CountOf(pastInputRewards[i][4])-1] + (rewardMulti * deltaHealingReceivedReward));
+            pastInputRewards[i][5] = Append(pastInputRewards[i][5], pastInputRewards[i][5][CountOf(pastInputRewards[i][5])-1] + (rewardMulti * deltaHealingDealtReward));
+            pastInputRewards[i][6] = Append(pastInputRewards[i][6], pastInputRewards[i][6][CountOf(pastInputRewards[i][6])-1] + (rewardMulti * deltaObjectiveTakenReward));
+            pastInputRewards[i][7] = Append(pastInputRewards[i][7], pastInputRewards[i][7][CountOf(pastInputRewards[i][7])-1] + (rewardMulti * deltaObjectiveLostReward));
+            pastInputRewards[i][8] = Append(pastInputRewards[i][8], pastInputRewards[i][8][CountOf(pastInputRewards[i][8])-1] + (rewardMulti * deltaEliminationReward));
+            pastInputRewards[i][9] = Append(pastInputRewards[i][9], pastInputRewards[i][9][CountOf(pastInputRewards[i][9])-1] + (rewardMulti * deltaEliminatedReward));
+            pastInputRewards[i][10] = Append(pastInputRewards[i][10], pastInputRewards[i][10][CountOf(pastInputRewards[i][10])] + (rewardMulti * deltaIdleReward));
 
             //if the input was made more than inputLifespan secs ago, backpropagate using the value accumulated since then
-            if (inputLifespan != -1 && pastInputTimes[i] >= inputLifespan) {
-                backPropagate(pastInputs[i], pastInputs[i], pastInputRewards[i][0]);
+            if (inputLifespan != -1 && pastInputTimes[i][CountOf(pastInputTimes[i]) - 1] >= inputLifespan) {
+                backPropagate(pastInputs[i], pastInputs[i], pastInputRewards[i][0][CountOf(pastInputRewards[i][0])-1]);
                 indexesToRemove = Append(indexesToRemove, i);
                 Wait(0.016);
                 inputResults = Append(inputResults, [Append(pastInputs[i], pastInputsExtension[i]), pastInputRewards[i]]);
