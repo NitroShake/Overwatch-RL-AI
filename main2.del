@@ -1,4 +1,4 @@
-//This is the main file version 2 - you'll want to compile using this file (it imports every neccessary file).
+//This is the main file version 2 - to replicate experiment #2, you'll want to compile using this file (it imports every neccessary file).
 //Alternatively, you can just get the compiled code from releases to make things easier
 //This is the 2nd version - notable differences are extended inputs/outputs (log only, nn complexity remains the same), and a wide+deep nn
 
@@ -742,7 +742,7 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
                 backPropagate(pastInputs[i], pastInputs[i], pastInputRewards[i][0][CountOf(pastInputRewards[i][0])-1]);
                 indexesToRemove = Append(indexesToRemove, i);
                 Wait(0.016);
-                inputResults = Append(inputResults, [Append(pastInputs[i], pastInputsExtension[i]), pastInputRewards[i]]);
+                inputResults = Append(inputResults, [Append(pastInputs[i], pastInputsExtension[i]), pastInputRewards[i], pastInputTimes[i]]);
             }
         }
 
