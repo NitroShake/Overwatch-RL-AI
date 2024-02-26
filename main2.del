@@ -492,6 +492,8 @@ Number[] getInputs(Vector position) 'get inputs' {
         inputsExtension = Append(inputsExtension, HorizontalAngleTowards(EventPlayer(), PositionOf(players[i])));
     }
 
+    inputsExtension = Append(inputsExtension, IsUsingAbility2(PlayersInSlot(1, Team.Team2)));
+
     //is agent being healed by support
     inputsExtension = Append(inputsExtension, PlayersInSlot(2, Team.Team1).lastTargetedPlayer == EventPlayer() || 
         (IsUsingUltimate(PlayersInSlot(2, Team.Team1)) && IsInLineOfSight(EventPlayer(), PlayersInSlot(2, Team.Team1))) ? 0.1 : -0.1);
