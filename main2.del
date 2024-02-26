@@ -813,6 +813,14 @@ void finish() 'Log results at end of match'
     SetMatchTime(999);
 }
 
+rule: 'validation'
+if (aiTime == 30)
+{
+    EnableInspectorRecording();
+    LogToInspector("Validation time!");
+    DisableInspectorRecording();
+}
+
 //decision-making takes >800ms
 //to compensate, the agent gets a burst of speed at the start of a decision to get to the target position faster, mitigating discrepencies between prediction and value
 //example: without this speed boost, the target may be out of line of sight by the time the agent reaches the target position
