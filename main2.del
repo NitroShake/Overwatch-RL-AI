@@ -445,7 +445,9 @@ Number[] getInputs(Vector position) 'get inputs' {
     LogToInspector(4);
 
     //extension:begin extended input collection
-    for (define i = 0; i <= 1; i++) {
+    //variable limit was reached with this code, so i is reused across these
+    define i = 0;
+    for (i = 0; i <= 1; i++) {
         define losCheck = 0;
         if (IsAlive(PlayersInSlot(i, Team.Team2))) {
             define radius = 3;
@@ -465,7 +467,7 @@ Number[] getInputs(Vector position) 'get inputs' {
         inputsExtension = Append(inputsExtension, losCheck);
     }
 
-    for (define i = 2; i <= 4; i++) {
+    for (i = 2; i <= 4; i++) {
         define losChecks = [0, 0];
         if (IsAlive(PlayersInSlot(i, Team.Team2))) {
             for (define r = 1; r <= CountOf(losChecks); r++) {
@@ -488,7 +490,7 @@ Number[] getInputs(Vector position) 'get inputs' {
         inputsExtension = Append(inputsExtension, losChecks);
     }
 
-    for (define i = 0; i < CountOf(players); i++) {
+    for (i = 0; i < CountOf(players); i++) {
         define targetArray = [-0.1, -0.1, -0.1];
         if (SlotOf(players[i].lastTargetedPlayer) != null && TeamOf(players[i].lastTargetedPlayer) == OppositeTeamOf(players[i])) {
             targetArray[SlotOf(players[i].lastTargetedPlayer)] = 0.1;
@@ -496,14 +498,14 @@ Number[] getInputs(Vector position) 'get inputs' {
         inputsExtension = Append(inputsExtension, targetArray);    
     }
 
-    for (define i = 0; i < CountOf(players); i++) {
+    for (i = 0; i < CountOf(players); i++) {
         for (define j = i+1; j < CountOf(players); i++) {
             inputsExtension = Append(inputsExtension, [(IsAlive(players[j]) && IsInLineOfSight(players[j], players[i], BarrierLOS.NoBarriersBlock)) ? 0.1 : -0.1,
                                 DistanceBetween(players[j], players[i]) / 1000]);
         }
     }
 
-    for (define i = 0; i < CountOf(players); i++) {
+    for (i = 0; i < CountOf(players); i++) {
         inputsExtension = Append(inputsExtension, HorizontalAngleTowards(EventPlayer(), PositionOf(players[i])));
     }
 
@@ -529,10 +531,10 @@ Number[] numsToAllPositiveNums(define array) {
     lowestNumber--;
     define power;
     if (idlePunishTimer >= 4) {
-        power = 7;
+        power = 6;
     }
     else {
-        power = 5;
+        power = 2;
     }
     for (define i = 0; i < CountOf(array); i++) {
         array[i] = RaiseToPower(array[i] - lowestNumber, power);
