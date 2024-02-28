@@ -367,8 +367,7 @@ enum BonusAction {
 //per teammate/enemy: distance, vertical distance, health, cooldown 1, 2, ult charge
 //self: Health, ammo, cooldown rocket/heals, is using ultimate, potential healing?
 //target: Health, distance, target hero thingy (5x bools)
-
-//put extra input [targeting 1, 2, 3, 4, 5, sprinting, healthtogain, isusingultimate]
+//extra input [targeting enemy #1, #2, #3, sprinting, healthtogain, isusingultimate]
 Number[] getInputs(Vector position) 'get inputs' {
     define inputs = [];
     define extraInputs = [];
@@ -376,7 +375,7 @@ Number[] getInputs(Vector position) 'get inputs' {
     define bonusActions = [];
     define inputsExtension = [];
     //set inputs
-    LogToInspector(1);
+    //LogToInspector(1);
     inputs = Append(inputs, [Health(EventPlayer()) / MaxHealth(EventPlayer()) / 10,
                             Ammo(EventPlayer()) / MaxAmmo(EventPlayer()) / 10,
                             AbilityCooldown(EventPlayer(), Button.Ability2) / 180,
@@ -386,7 +385,7 @@ Number[] getInputs(Vector position) 'get inputs' {
                             DistanceBetween(ObjectivePosition(ObjectiveIndex()), position) / 800,
                             (position.Y - ObjectivePosition(ObjectiveIndex()).Y) / 100,
                             (position.X <= -321.3 && position.X >= -335.5 && position.Z <= 147.3 && position.Z >= 134) ? 0.1 : -0.1]);
-    LogToInspector(1);
+    //LogToInspector(1);
     for (define i = 0; i < CountOf(players); i++) {
         inputs = Append(inputs, [Health(players[i]) / MaxHealth(players[i]) / 10,
                                 (IsAlive(players[i]) && IsInLineOfSight(position, players[i], BarrierLOS.NoBarriersBlock)) ? 0.1 : -0.1,
@@ -409,7 +408,7 @@ Number[] getInputs(Vector position) 'get inputs' {
             }
         }
     }
-    LogToInspector(2);
+    //LogToInspector(2);
     //sprinting to location
     extraInputs = Append(extraInputs, [[-0.1, -0.1, -0.1, 0.1, getRecoverableHealth(position), -0.1]]);
     targets = Append(targets, null);
@@ -428,7 +427,7 @@ Number[] getInputs(Vector position) 'get inputs' {
         targets = Append(targets, null);
         bonusActions = Append(bonusActions, BonusAction.Ultimate);
     }
-    LogToInspector(3);
+    //LogToInspector(3);
 
     //targeting each players in LOS
     define enemiesInRadius = PlayersWithinRadius(position, 50, Team.Team2, RadiusLOS.SurfacesAndEnemyBarriers);
@@ -451,9 +450,10 @@ Number[] getInputs(Vector position) 'get inputs' {
         if (IsAlive(PlayersInSlot(i, Team.Team2))) {
             for (define r = 1; r <= CountOf(losChecks); r++) {
                 define rNodes = RaiseToPower((r*2) + 1, 2) - (RaiseToPower((r*2) - 1, 2));
-                for (define j = -3*r; j <= 3*r; j+=3) {
-                    for (define k = -3*r; k <= 3*r; k+=3) {
-                        if (AbsoluteValue(j) == 3*r || AbsoluteValue(k) == 3*r) {
+                define radius = 3*r;
+                for (define j = -radius; j <= radius; j+=3) {
+                    for (define k = -radius; k <= radius; k+=3) {
+                        if (!(AbsoluteValue(j) == radius && AbsoluteValue(k) == radius) && (AbsoluteValue(j) == radius || AbsoluteValue(k) == radius)) {
                             if (IsInLineOfSight(position, EyePosition(players[i]) + Vector(j, 0, k))) {
                                 losChecks[r - 1] += 0.1/rNodes;
                             }
@@ -477,14 +477,9 @@ Number[] getInputs(Vector position) 'get inputs' {
     }
 
     for (define i = 0; i < CountOf(players); i++) {
-        define players2 = players;
-        players2 = RemoveFromArray(players2, players[i]);
-        players2 = Append(players2, EventPlayer());
-        for (define j = 0; j < CountOf(players2); i++) {
-            inputsExtension = Append(inputsExtension, [(IsAlive(players2[j]) && IsInLineOfSight(players2[j], players[i], BarrierLOS.NoBarriersBlock)) ? 0.1 : -0.1,
-                                DistanceBetween(players2[j], players[i]) / 1000,
-                                (DistanceBetween(players[i], players2[j].positionTracking[0]) - DistanceBetween(players[i], players2[j])) / 300,
-                                AbsoluteValue(HorizontalAngleTowards(players[i], PositionOf(players2[j]))) / 1800]);
+        for (define j = i+1; j < CountOf(players); i++) {
+            inputsExtension = Append(inputsExtension, [(IsAlive(players[j]) && IsInLineOfSight(players[j], players[i], BarrierLOS.NoBarriersBlock)) ? 0.1 : -0.1,
+                                DistanceBetween(players[j], players[i]) / 1000]);
         }
     }
 
@@ -540,6 +535,7 @@ Team.Team1
 {
     Wait(2);
     StartHoldingButton(EventPlayer(), Button.Ability1);
+    //this loop continues for [int below] seconds before stopping
     while (aiTime < 330) {
         if (IsAlive(EventPlayer())) {
             define choicePositions = [];
