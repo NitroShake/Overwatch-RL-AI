@@ -445,7 +445,27 @@ Number[] getInputs(Vector position) 'get inputs' {
     LogToInspector(4);
 
     //extension:begin extended input collection
-    for (define i = 0; i < CountOf(players); i++) {
+    for (define i = 0; i <= 1; i++) {
+        define losCheck = 0;
+        if (IsAlive(PlayersInSlot(i, Team.Team2))) {
+            define radius = 3;
+            for (define j = -3; j <= 3; j+=3) {
+                for (define k = -3; k <= 3; k+=3) {
+                    if (!(AbsoluteValue(j) == radius && AbsoluteValue(k) == radius) && (AbsoluteValue(j) == radius || AbsoluteValue(k) == radius)) {
+                        if (IsInLineOfSight(position, EyePosition(players[i]) + Vector(j, 0, k))) {
+                            losCheck += 0.1/9;
+                        }
+                        else if (!IsInLineOfSight(EyePosition(players[i]), EyePosition(players[i]) + Vector(j, 0, k))) {
+                            losCheck += 0.1/9;
+                        }
+                    }
+                }
+            }
+        }
+        inputsExtension = Append(inputsExtension, losCheck);
+    }
+
+    for (define i = 2; i <= 4; i++) {
         define losChecks = [0, 0];
         if (IsAlive(PlayersInSlot(i, Team.Team2))) {
             for (define r = 1; r <= CountOf(losChecks); r++) {
