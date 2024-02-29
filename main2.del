@@ -25,6 +25,16 @@ globalvar define pastInputsExtension = [];
 globalvar define pastInputTimes = [];
 globalvar define pastInputRewards = [];
 globalvar define pastInputHasAction = [];
+playervar define pastDamageDealtRewards = [];
+playervar define pastDamageTakenRewards = [];
+playervar define pastDamageLostByEnemyHealingRewards = [];
+playervar define pastHealingReceivedRewards = [];
+playervar define pastHealingDealtRewards = [];
+playervar define pastObjectiveTakenRewards = [];
+playervar define pastObjectiveLostRewards = [];
+playervar define pastEliminationRewards = [];
+playervar define pastEliminatedRewards = [];
+playervar define pastIdleRewards = [];
 globalvar define aiTime = 0;
 playervar define aimTarget = null;
 playervar define extraAction = null;
@@ -695,7 +705,17 @@ Team.Team1
                 if (backPropAction) {
                     pastInputs = Append(pastInputs, [choiceInputs[actionIndex]]);
                     pastInputTimes = Append(pastInputTimes, [[]]);
-                    pastInputRewards = Append(pastInputRewards, [[[], [], [], [], [], [], [], [], [], [], []]]);
+                    pastInputRewards = Append(pastInputRewards, [[]]);
+                    pastDamageDealtRewards = Append(pastDamageDealtRewards, [[]]);
+                    pastDamageLostByEnemyHealingRewards = Append(pastDamageLostByEnemyHealingRewards, [[]]);
+                    pastDamageTakenRewards = Append(pastDamageTakenRewards, [[]]);
+                    pastEliminatedRewards = Append(pastEliminatedRewards, [[]]);
+                    pastEliminationRewards = Append(pastEliminationRewards, [[]]);
+                    pastHealingDealtRewards = Append(pastHealingDealtRewards, [[]]);
+                    pastHealingReceivedRewards = Append(pastHealingReceivedRewards, [[]]);
+                    pastIdleRewards = Append(pastIdleRewards, [[]]);
+                    pastObjectiveLostRewards = Append(pastObjectiveLostRewards, [[]]);
+                    pastObjectiveTakenRewards = Append(pastObjectiveTakenRewards, [[]]);
                     pastInputsExtension = Append(pastInputsExtension, [choiceInputExtensions[actionIndex]]);
                     if (aimTarget == null && (extraAction == BonusAction.None || extraAction == BonusAction.Sprint)) {
                         pastInputHasAction = Append(pastInputHasAction, false);
@@ -745,17 +765,17 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
             else {
                 rewardMulti = RaiseToPower(0.5, pastInputTimes[i]);
             }
-            pastInputRewards[i][0] = Append(pastInputRewards[i][0], pastInputRewards[i][0][CountOf(pastInputRewards[i][0])-1] + (rewardMulti * deltaReward));
-            pastInputRewards[i][1] = Append(pastInputRewards[i][1], pastInputRewards[i][1][CountOf(pastInputRewards[i][1])-1] + (rewardMulti * deltaDamageDealtReward));
-            pastInputRewards[i][2] = Append(pastInputRewards[i][2], pastInputRewards[i][2][CountOf(pastInputRewards[i][2])-1] + (rewardMulti * deltaDamageTakenReward));
-            pastInputRewards[i][3] = Append(pastInputRewards[i][3], pastInputRewards[i][3][CountOf(pastInputRewards[i][3])-1] + (rewardMulti * deltaDamageLostByEnemyHealingReward));
-            pastInputRewards[i][4] = Append(pastInputRewards[i][4], pastInputRewards[i][4][CountOf(pastInputRewards[i][4])-1] + (rewardMulti * deltaHealingReceivedReward));
-            pastInputRewards[i][5] = Append(pastInputRewards[i][5], pastInputRewards[i][5][CountOf(pastInputRewards[i][5])-1] + (rewardMulti * deltaHealingDealtReward));
-            pastInputRewards[i][6] = Append(pastInputRewards[i][6], pastInputRewards[i][6][CountOf(pastInputRewards[i][6])-1] + (rewardMulti * deltaObjectiveTakenReward));
-            pastInputRewards[i][7] = Append(pastInputRewards[i][7], pastInputRewards[i][7][CountOf(pastInputRewards[i][7])-1] + (rewardMulti * deltaObjectiveLostReward));
-            pastInputRewards[i][8] = Append(pastInputRewards[i][8], pastInputRewards[i][8][CountOf(pastInputRewards[i][8])-1] + (rewardMulti * deltaEliminationReward));
-            pastInputRewards[i][9] = Append(pastInputRewards[i][9], pastInputRewards[i][9][CountOf(pastInputRewards[i][9])-1] + (rewardMulti * deltaEliminatedReward));
-            pastInputRewards[i][10] = Append(pastInputRewards[i][10], pastInputRewards[i][10][CountOf(pastInputRewards[i][10])] + (rewardMulti * deltaIdleReward));
+            pastInputRewards[i] = Append(pastInputRewards[i], pastInputRewards[i][CountOf(pastInputRewards[i])-1] + (rewardMulti * deltaReward));
+            pastDamageDealtRewards[i] = Append(pastDamageDealtRewards[i], pastDamageDealtRewards[i][CountOf(pastDamageDealtRewards[i])-1] + (rewardMulti * deltaDamageDealtReward));
+            pastDamageLostByEnemyHealingRewards[i] = Append(pastDamageLostByEnemyHealingRewards[i], pastDamageLostByEnemyHealingRewards[i][CountOf(pastDamageLostByEnemyHealingRewards[i])-1] + (rewardMulti * deltaDamageTakenReward));
+            pastDamageTakenRewards[i] = Append(pastDamageTakenRewards[i], pastDamageTakenRewards[i][CountOf(pastDamageTakenRewards[i])-1] + (rewardMulti * deltaDamageLostByEnemyHealingReward));
+            pastEliminatedRewards[i] = Append(pastEliminatedRewards[i], pastEliminatedRewards[i][CountOf(pastEliminatedRewards[i])-1] + (rewardMulti * deltaHealingReceivedReward));
+            pastEliminationRewards[i] = Append(pastEliminationRewards[i], pastEliminationRewards[i][CountOf(pastEliminationRewards[i])-1] + (rewardMulti * deltaHealingDealtReward));
+            pastHealingDealtRewards[i] = Append(pastHealingDealtRewards[i], pastHealingDealtRewards[i][CountOf(pastHealingDealtRewards[i])-1] + (rewardMulti * deltaObjectiveTakenReward));
+            pastHealingReceivedRewards[i] = Append(pastHealingReceivedRewards[i], pastHealingReceivedRewards[i][CountOf(pastHealingReceivedRewards[i])-1] + (rewardMulti * deltaObjectiveLostReward));
+            pastIdleRewards[i] = Append(pastIdleRewards[i], pastIdleRewards[i][CountOf(pastIdleRewards[i])-1] + (rewardMulti * deltaEliminationReward));
+            pastObjectiveLostRewards[i] = Append(pastObjectiveLostRewards[i], pastObjectiveLostRewards[i][CountOf(pastObjectiveLostRewards[i])-1] + (rewardMulti * deltaEliminatedReward));
+            pastObjectiveTakenRewards[i] = Append(pastObjectiveTakenRewards[i], pastObjectiveTakenRewards[i][CountOf(pastObjectiveTakenRewards[i])] + (rewardMulti * deltaIdleReward));
 
             //if the input was made more than inputLifespan secs ago, backpropagate using the value accumulated since then
             if (inputLifespan != -1 && pastInputTimes[i][CountOf(pastInputTimes[i]) - 1] >= inputLifespan) {
