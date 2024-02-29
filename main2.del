@@ -516,10 +516,10 @@ Number[] getInputs(Vector position) 'get inputs' {
     }
 
     for (i = 0; i < CountOf(players); i++) {
-        inputsExtension = Append(inputsExtension, HorizontalAngleTowards(EventPlayer(), PositionOf(players[i])));
+        inputsExtension = Append(inputsExtension, HorizontalAngleTowards(EventPlayer(), PositionOf(players[i]) / 1800));
     }
 
-    inputsExtension = Append(inputsExtension, IsUsingAbility2(PlayersInSlot(1, Team.Team2)));
+    inputsExtension = Append(inputsExtension, IsUsingAbility2(PlayersInSlot(1, Team.Team2) ? 0.1 : -0.1));
 
     //is agent being healed by support
     inputsExtension = Append(inputsExtension, PlayersInSlot(2, Team.Team1).lastTargetedPlayer == EventPlayer() || 
@@ -826,6 +826,16 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
 
         deltaTime = 0;
         deltaReward = 0;
+        deltaDamageDealtReward = 0;
+        deltaDamageTakenReward = 0;
+        deltaDamageLostByEnemyHealingReward = 0;
+        deltaHealingReceivedReward = 0;
+        deltaHealingDealtReward = 0;
+        deltaObjectiveTakenReward = 0;
+        deltaObjectiveLostReward = 0;
+        deltaEliminationReward = 0;
+        deltaEliminatedReward = 0;
+        deltaIdleReward = 0;
     }
 }
 
