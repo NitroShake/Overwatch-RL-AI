@@ -235,7 +235,7 @@ define optimisedFeedForward(define inputs, define extraInputs, define wideInputs
             //LogToInspector('adding {0} * {1} to output'.Format([hiddenLayer[j], w2[j]]));
         }
         for (define j = 0; j < CountOf(wideExtraInputs[i]); j++) {
-            output += wideExtraInputs[i][j] * wideW[j];
+            output += wideExtraInputs[i][j] * wideW[j+CountOf(wideInputs)];
             //LogToInspector('adding {0} * {1} to output'.Format([hiddenLayer[j], w2[j]]));
         }
 
@@ -278,7 +278,7 @@ void backPropagate(define inputs, define wideInputs, define actualValue) 'Back-p
         }
     }
     for (define i = 0; i < CountOf(wideW); i++) {
-        wideW = wideW - (learningRate * wideInputs[i] * loss);
+        wideW[i] = wideW[i] - (learningRate * wideInputs[i] * loss);
     }
     Wait(0.016);
 
@@ -302,7 +302,7 @@ rule: 'Match Init'
     //track server load
     CreateHudText(AllPlayers(), '{0} {1} {2}'.Format([ServerLoad(), ServerLoadAverage(), ServerLoadPeak()]),
     null, null, Location.Left, 1, Color.White, Color.Aqua, Color.Aqua, HudTextRev.VisibleToAndString, Spectators.VisibleAlways);
-    CreateHudText(AllPlayers(), '{0} | {1}'.Format([aiTime, idlePunishTimer]),
+    CreateHudText(AllPlayers(), '{0} | {1} | {2}'.Format([aiTime, idlePunishTimer, CountOf(pastInputTimes)]),
     null, null, Location.Left, 1, Color.White, Color.Aqua, Color.Aqua, HudTextRev.VisibleToAndString, Spectators.VisibleAlways);
     //these two are crucial for performance - server crashes at regular speed, and
     //client crashes if inspector recording is enabled (too many step-throughs)
@@ -457,7 +457,7 @@ Number[] getInputs(Vector position) 'get inputs' {
     //extension:begin extended input collection
     //variable limit was reached with this code, so i is reused across these
     define i = 0;
-    for (i = 0; i <= 1; i++) {
+    for (i = 0; i <= 4; i++) {
         define losCheck = 0;
         if (IsAlive(players[i])) {
             define radius = 3;
@@ -477,7 +477,7 @@ Number[] getInputs(Vector position) 'get inputs' {
         inputsExtension = Append(inputsExtension, losCheck);
     }
 
-    for (i = 2; i <= 4; i++) {
+    for (i = 2; i <= -2; i++) {
         define losChecks = [0, 0];
         if (IsAlive(players[i])) {
             for (define r = 1; r <= CountOf(losChecks); r++) {
@@ -516,7 +516,7 @@ Number[] getInputs(Vector position) 'get inputs' {
     }
 
     for (i = 0; i < CountOf(players); i++) {
-        inputsExtension = Append(inputsExtension, HorizontalAngleTowards(EventPlayer(), PositionOf(players[i]) / 1800));
+        inputsExtension = Append(inputsExtension, HorizontalAngleTowards(EventPlayer(), PositionOf(players[i])) / 1800);
     }
 
     inputsExtension = Append(inputsExtension, IsUsingAbility2(PlayersInSlot(1, Team.Team2)) ? 0.1 : -0.1);
@@ -760,41 +760,42 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
             //add reward to the input, where 0.9 is the discount rate
             define rewardMulti;
             if (pastInputHasAction[i]) {
-                rewardMulti = RaiseToPower(0.8, pastInputTimes[i]);
+                rewardMulti = RaiseToPower(0.8, pastInputTimes[i][CountOf(pastInputTimes[i]) - 1]);
             }
             else {
-                rewardMulti = RaiseToPower(0.5, pastInputTimes[i]);
+                rewardMulti = RaiseToPower(0.5, pastInputTimes[i][CountOf(pastInputTimes[i]) - 1]);
             }
             pastInputRewards[i] = Append(pastInputRewards[i], pastInputRewards[i][CountOf(pastInputRewards[i])-1] + (rewardMulti * deltaReward));
             pastDamageDealtRewards[i] = Append(pastDamageDealtRewards[i], pastDamageDealtRewards[i][CountOf(pastDamageDealtRewards[i])-1] + (rewardMulti * deltaDamageDealtReward));
             pastDamageLostByEnemyHealingRewards[i] = Append(pastDamageLostByEnemyHealingRewards[i], pastDamageLostByEnemyHealingRewards[i][CountOf(pastDamageLostByEnemyHealingRewards[i])-1] + (rewardMulti * deltaDamageTakenReward));
             pastDamageTakenRewards[i] = Append(pastDamageTakenRewards[i], pastDamageTakenRewards[i][CountOf(pastDamageTakenRewards[i])-1] + (rewardMulti * deltaDamageLostByEnemyHealingReward));
-            pastEliminatedRewards[i] = Append(pastEliminatedRewards[i], pastEliminatedRewards[i][CountOf(pastEliminatedRewards[i])-1] + (rewardMulti * deltaHealingReceivedReward));
-            pastEliminationRewards[i] = Append(pastEliminationRewards[i], pastEliminationRewards[i][CountOf(pastEliminationRewards[i])-1] + (rewardMulti * deltaHealingDealtReward));
-            pastHealingDealtRewards[i] = Append(pastHealingDealtRewards[i], pastHealingDealtRewards[i][CountOf(pastHealingDealtRewards[i])-1] + (rewardMulti * deltaObjectiveTakenReward));
-            pastHealingReceivedRewards[i] = Append(pastHealingReceivedRewards[i], pastHealingReceivedRewards[i][CountOf(pastHealingReceivedRewards[i])-1] + (rewardMulti * deltaObjectiveLostReward));
-            pastIdleRewards[i] = Append(pastIdleRewards[i], pastIdleRewards[i][CountOf(pastIdleRewards[i])-1] + (rewardMulti * deltaEliminationReward));
-            pastObjectiveLostRewards[i] = Append(pastObjectiveLostRewards[i], pastObjectiveLostRewards[i][CountOf(pastObjectiveLostRewards[i])-1] + (rewardMulti * deltaEliminatedReward));
-            pastObjectiveTakenRewards[i] = Append(pastObjectiveTakenRewards[i], pastObjectiveTakenRewards[i][CountOf(pastObjectiveTakenRewards[i])] + (rewardMulti * deltaIdleReward));
+            pastEliminatedRewards[i] = Append(pastEliminatedRewards[i], pastEliminatedRewards[i][CountOf(pastEliminatedRewards[i])-1] + (rewardMulti * deltaEliminatedReward));
+            pastEliminationRewards[i] = Append(pastEliminationRewards[i], pastEliminationRewards[i][CountOf(pastEliminationRewards[i])-1] + (rewardMulti * deltaEliminationReward));
+            pastHealingDealtRewards[i] = Append(pastHealingDealtRewards[i], pastHealingDealtRewards[i][CountOf(pastHealingDealtRewards[i])-1] + (rewardMulti * deltaHealingDealtReward));
+            pastHealingReceivedRewards[i] = Append(pastHealingReceivedRewards[i], pastHealingReceivedRewards[i][CountOf(pastHealingReceivedRewards[i])-1] + (rewardMulti * deltaHealingReceivedReward));
+            pastIdleRewards[i] = Append(pastIdleRewards[i], pastIdleRewards[i][CountOf(pastIdleRewards[i])-1] + (rewardMulti * deltaIdleReward));
+            pastObjectiveLostRewards[i] = Append(pastObjectiveLostRewards[i], pastObjectiveLostRewards[i][CountOf(pastObjectiveLostRewards[i])-1] + (rewardMulti * deltaObjectiveLostReward));
+            pastObjectiveTakenRewards[i] = Append(pastObjectiveTakenRewards[i], pastObjectiveTakenRewards[i][CountOf(pastObjectiveTakenRewards[i])] + (rewardMulti * deltaObjectiveTakenReward));
 
             //if the input was made more than inputLifespan secs ago, backpropagate using the value accumulated since then
             if (inputLifespan != -1 && pastInputTimes[i][CountOf(pastInputTimes[i]) - 1] >= inputLifespan) {
-                backPropagate(pastInputs[i], pastInputs[i], pastInputRewards[i][CountOf(pastInputRewards[i][0])-1]);
+                backPropagate(pastInputs[i], pastInputs[i], pastInputRewards[i][CountOf(pastInputRewards[i])-1]);
                 indexesToRemove = Append(indexesToRemove, i);
                 Wait(0.016);
-                inputResults = Append(inputResults, [Append(pastInputs[i], pastInputsExtension[i]), 
-                                        pastInputRewards[i],
-                                        pastDamageDealtRewards[i],
-                                        pastDamageLostByEnemyHealingRewards[i],
-                                        pastDamageTakenRewards[i],
-                                        pastEliminatedRewards[i],
-                                        pastEliminationRewards[i],
-                                        pastHealingDealtRewards[i],
-                                        pastHealingReceivedRewards[i],
-                                        pastIdleRewards[i],
-                                        pastObjectiveLostRewards[i],
-                                        pastObjectiveTakenRewards[i],
-                                        pastInputTimes[i]]);
+                inputResults = Append(inputResults, 
+                    [Append(pastInputs[i], pastInputsExtension[i]), 
+                    pastInputRewards[i],
+                    pastDamageDealtRewards[i],
+                    pastDamageLostByEnemyHealingRewards[i],
+                    pastDamageTakenRewards[i],
+                    pastEliminatedRewards[i],
+                    pastEliminationRewards[i],
+                    pastHealingDealtRewards[i],
+                    pastHealingReceivedRewards[i],
+                    pastIdleRewards[i],
+                    pastObjectiveLostRewards[i],
+                    pastObjectiveTakenRewards[i],
+                    pastInputTimes[i]]);
             }
         }
 
@@ -886,7 +887,7 @@ void finish() 'Log results at end of match'
 }
 
 rule: 'validation'
-if (aiTime == 30)
+if (aiTime >= 90)
 {
     EnableInspectorRecording();
     LogToInspector("Validation time!");
