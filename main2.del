@@ -53,7 +53,9 @@ rule: 'assignDmgPercent'
 Event.OngoingPlayer
 {
     if (IsDummyBot(EventPlayer())) {
-        dmgPercent = 60;
+        dmgPercent = 40;
+    } else if (HeroOf(EventPlayer()) == Hero.Soldier76) {
+        dmgPercent = 65;
     } else {
         dmgPercent = 100;
     }
@@ -131,7 +133,9 @@ rule: 'init weights'
 //NEURAL NETWORK BEGINS HERE
 //this could be bundled into a class, but classes are merely an abstraction that place their instance's vars into a shared array
 //this effectively makes the weights a 3d array, which would kill performance
-globalvar define learningRate = 0.005;
+globalvar define learningRate = 0.01;
+playervar define wideLearningRate = 0.005;
+playervar define outputLearningRate = 0.005;
 globalvar define w1;
 globalvar define w2;   
 globalvar define wideW;
@@ -768,7 +772,7 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
             pastInputRewards[i] = Append(pastInputRewards[i], pastInputRewards[i][CountOf(pastInputRewards[i])-1] + (rewardMulti * deltaReward));
             pastDamageDealtRewards[i] = Append(pastDamageDealtRewards[i], pastDamageDealtRewards[i][CountOf(pastDamageDealtRewards[i])-1] + (rewardMulti * deltaDamageDealtReward));
             pastDamageLostByEnemyHealingRewards[i] = Append(pastDamageLostByEnemyHealingRewards[i], pastDamageLostByEnemyHealingRewards[i][CountOf(pastDamageLostByEnemyHealingRewards[i])-1] + (rewardMulti * deltaDamageTakenReward));
-            pastDamageTakenRewards[i] = Append(pastDamageTakenRewards[i], pastDamageTakenRewards[i][CountOf(pastDamageTakenRewards[i])-1] + (rewardMulti * deltaDamageLostByEnemyHealingReward));
+            pastDamageTakenRewards[i] = Append(pastDamageTakenRewards[i], pastDamageTakenRewards[i][CountOf(pastDamageTakenRewards[i])-1] + (rewardMulti * pastDamageTakenRewards));
             pastEliminatedRewards[i] = Append(pastEliminatedRewards[i], pastEliminatedRewards[i][CountOf(pastEliminatedRewards[i])-1] + (rewardMulti * deltaEliminatedReward));
             pastEliminationRewards[i] = Append(pastEliminationRewards[i], pastEliminationRewards[i][CountOf(pastEliminationRewards[i])-1] + (rewardMulti * deltaEliminationReward));
             pastHealingDealtRewards[i] = Append(pastHealingDealtRewards[i], pastHealingDealtRewards[i][CountOf(pastHealingDealtRewards[i])-1] + (rewardMulti * deltaHealingDealtReward));
@@ -1011,21 +1015,24 @@ Player.Soldier76
 //When other abilities (e.g., rocket) hits, the AI's aim is imperfect, so extra damage is dealt to bring the damage dealt back up.
 rule: 'AI dmg adjust for ult'
 Event.OngoingPlayer
-if (IsDummyBot(EventPlayer()) && IsUsingUltimate(EventPlayer()))
+Player.Soldier76
+if (IsUsingUltimate(EventPlayer()))
 {
     SetDamageDealt(EventPlayer(), 100);
 }
 
 rule: 'AI dmg adjust for non-ult'
 Event.OngoingPlayer
-if (IsDummyBot(EventPlayer()) && !IsUsingUltimate(EventPlayer()))
+Player.Soldier76
+if (!IsUsingUltimate(EventPlayer()))
 {
     SetDamageDealt(EventPlayer(), dmgPercent);
 }
 
 rule: 'AI deal extra damage to offset nerf'
 Event.OnDamageDealt
-if (IsDummyBot(EventPlayer()) && EventAbility() == Button.SecondaryFire && dmgPercent != 100)
+Player.Soldier76
+if (EventAbility() == Button.SecondaryFire && dmgPercent != 100)
 {
     Damage(Victim(), EventPlayer(), (EventDamage() / 100) * (100 - dmgPercent));
 }
