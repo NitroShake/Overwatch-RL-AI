@@ -1,0 +1,175 @@
+//===============================================================================================================
+//NEURAL NETWORK BEGINS HERE
+//this could be bundled into a class, but classes are merely an abstraction that place their instance's vars into a shared array
+//this effectively makes the weights a 3d array, which would kill performance
+globalvar define e = 2.718281828;
+globalvar define learningRate = 0.01;
+playervar define wideLearningRate = 0.01;
+playervar define outputLearningRate = 0.01;
+globalvar define totalLoss = 0;
+globalvar define lossCount = 0;
+globalvar define w1;
+globalvar define w2;   
+globalvar define wideW;
+globalvar define lastLayer1;
+
+Number feedForward(define inputs, define wideInputs) 'feed-forward'
+{
+    LogToInspector("Feeding forward...");
+    define output = 0;
+    define layer1 = [];
+
+    //forward all inputs to hidden layer. w2 has one weight per HL node, so it's used for the countof
+    for (define i = 0; i < CountOf(w2); i++) {
+        for (define j = 0; j < CountOf(inputs); j++) {
+            layer1[i] += inputs[j] * w1[j][i];
+            //LogToInspector(w1[j][i]);
+        }
+    }
+    //LogToInspector(layer1);
+
+    Wait(0.016);
+
+    //activation function on hidden layer
+    for (define i = 0; i < CountOf(w2); i++) {
+        layer1[i] = tanh(layer1[i]);
+    } 
+
+    //LogToInspector(layer1);
+
+    //forward hidden layer to output node
+    for (define i = 0; i < CountOf(w2); i++) {
+        output += layer1[i] * w2[i];
+    }
+
+    for (define i = 0; i < CountOf(wideW); i++) {
+        output += wideInputs[i] * wideW[i];
+    }
+
+    lastLayer1 = layer1;
+
+    return output;
+}
+
+//feedforward optimised for multiple FFs. calculates the non-activated values for the first hidden layer once,
+//then reuses them for each FF, adding on inputs from extraInputs[i] each time.
+//this reduces the multiplications needed for subsequent FFs, saving server resources
+define optimisedFeedForward(define inputs, define extraInputs, define wideInputs, define wideExtraInputs) 'optimised feed-forward' {
+    define layer1 = [];
+    define baseWeightI = 0;
+
+    for (define i = 0; i < CountOf(w2); i++) {
+        for (define j = 0; j < CountOf(inputs); j++) {
+            layer1[i] += inputs[j] * w1[j][i];
+            baseWeightI = j;
+        }
+    }
+
+    Wait(0.016);
+    //LogToInspector("i {0}".Format([baseWeightI]));
+
+    define outputs = [];
+    baseWeightI += 1;
+    define breakI1 = RoundToInteger(CountOf(extraInputs) / 2);
+    LogToInspector('the layers');
+    for (define i = 0; i < CountOf(extraInputs); i++) {
+        define output = 0;
+        define hiddenLayer = layer1;
+        define extraInput = extraInputs[i];
+        for (define j = 0; j < CountOf(hiddenLayer); j++) {
+            for (define k = 0; k < CountOf(extraInput); k++) {
+                hiddenLayer[j] += extraInput[k] * w1[baseWeightI + k][j];
+                //LogToInspector('multiplying {0} by {1}'.Format([extraInputs[i][k], w1[baseWeightI + 1 + k][j]]));
+            }
+        }
+        for (define j = 0; j < CountOf(layer1); j++) {
+            hiddenLayer[j] = tanh(hiddenLayer[j]);
+        } 
+        //LogToInspector('hidden layer: {0} | {1}'.Format([hiddenLayer[0], hiddenLayer[1]]));
+
+        //forward hidden layer to output node
+        for (define j = 0; j < CountOf(hiddenLayer); j++) {
+            output += hiddenLayer[j] * w2[j];
+            //LogToInspector('adding {0} * {1} to output'.Format([hiddenLayer[j], w2[j]]));
+        }
+
+        for (define j = 0; j < CountOf(wideInputs); j++) {
+            output += wideInputs[j] * wideW[j];
+            //LogToInspector('adding {0} * {1} to output'.Format([hiddenLayer[j], w2[j]]));
+        }
+        for (define j = 0; j < CountOf(wideExtraInputs[i]); j++) {
+            output += wideExtraInputs[i][j] * wideW[j+CountOf(wideInputs)];
+            //LogToInspector('adding {0} * {1} to output'.Format([hiddenLayer[j], w2[j]]));
+        }
+
+
+        outputs = outputs.Append(output);
+        //LogToInspector('----');
+        //if (i == breakI1) {
+            //Wait(0.016);
+        //}
+    }
+
+    return outputs;
+}
+
+Number tanh(define x) 
+{
+    define e2x = RaiseToPower(e, 2*x);
+    return (e2x - 1) / (e2x + 1);
+    //return x;
+}
+
+Number tanhDerivative(define x) {
+    define y = tanh(x);
+    return 1 - (y * y);
+}
+
+void backPropagate(define inputs, define wideInputs, define actualValue) 'Back-propagation'
+{
+    Wait(0.016);
+    define loss = feedForward(inputs, wideInputs) - actualValue;
+    totalLoss += AbsoluteValue(loss);
+    lossCount++;
+    LogToInspector("Back-propagating...");
+    define hlLosses = [];
+    for (define i = 0; i < CountOf(w2); i++) {
+        hlLosses = Append(hlLosses, w2[i] * loss * tanhDerivative(lastLayer1[i]));
+        w2[i] = w2[i] - (learningRate * lastLayer1[i] * loss);
+    }
+    for (define i = 0; i < CountOf(wideW); i++) {
+        wideW[i] = wideW[i] - (learningRate * wideInputs[i] * loss);
+    }
+    Wait(0.016);
+
+    for (define j = 0; j < CountOf(inputs); j++) {
+        define weights = w1[j];
+        for (define i = 0; i < CountOf(hlLosses); i++) {
+            weights[i] = weights[i] - (learningRate * inputs[j] * hlLosses[i]);
+        }
+        w1[j] = weights;
+    }
+}
+
+
+
+rule: 'My Rule'
+{
+    w1 = [[0.2, 0.3, 0.1], [-0.4, -0.2, -0.1], [0.3, -0.4, -0.2], [-0.1, 0.1, 0.3], [0.7, 0.8, 0.6]];
+    w2 = [3, 4, -5];
+    wideW = [-3.2, 2, 4, -1, 2];
+    define inputs = [-2, 1, 0.25, 1, 2];
+
+    LogToInspector(feedForward(inputs, inputs));
+
+    define off = optimisedFeedForward([-2, 1, 0.25], [[1, 2], [1, 2]], [-2, 1, 0.25], [[1, 2], [1, 2]]);
+
+    LogToInspector(off[0]);
+    LogToInspector(off[1]);
+    LogToInspector(off[2]);
+
+    
+    backPropagate(inputs, inputs, -5);
+
+    LogToInspector(feedForward(inputs, inputs));
+}

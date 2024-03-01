@@ -5,7 +5,6 @@
 import 'pathfinder.del';
 import 'customGameSettings.json';
 
-globalvar define e = 2.718281828;
 playervar define deltaReward = 0;
 playervar define deltaDamageDealtReward = 0;
 playervar define deltaDamageTakenReward = 0;
@@ -43,8 +42,6 @@ playervar define positionTracking = [];
 globalvar define team1Score = 0;
 globalvar define team2Score = 0;
 playervar define dmgPercent; //dmg multiplier (in percent) for primary fire (compensating for near-perfect aim)
-globalvar define totalLoss = 0;
-globalvar define lossCount = 0;
 globalvar define idlePunishTimer = 0;
 playervar define isSpedUp = false;
 playervar define dmgTakenFromAgent = 0;
@@ -133,9 +130,12 @@ rule: 'init weights'
 //NEURAL NETWORK BEGINS HERE
 //this could be bundled into a class, but classes are merely an abstraction that place their instance's vars into a shared array
 //this effectively makes the weights a 3d array, which would kill performance
+globalvar define e = 2.718281828;
 globalvar define learningRate = 0.01;
 playervar define wideLearningRate = 0.005;
 playervar define outputLearningRate = 0.005;
+globalvar define totalLoss = 0;
+globalvar define lossCount = 0;
 globalvar define w1;
 globalvar define w2;   
 globalvar define wideW;
@@ -276,13 +276,13 @@ void backPropagate(define inputs, define wideInputs, define actualValue) 'Back-p
     define hlLosses = [];
     for (define i = 0; i < CountOf(w2); i++) {
         hlLosses = Append(hlLosses, w2[i] * loss * tanhDerivative(lastLayer1[i]));
-        w2[i] = w2[i] - (learningRate * lastLayer1[i] * loss);
+        w2[i] = w2[i] - (outputLearningRate * lastLayer1[i] * loss);
         if (runSlow && i % 10 == 0) {
             Wait(0.016);
         }
     }
     for (define i = 0; i < CountOf(wideW); i++) {
-        wideW[i] = wideW[i] - (learningRate * wideInputs[i] * loss);
+        wideW[i] = wideW[i] - (wideLearningRate * wideInputs[i] * loss);
     }
     Wait(0.016);
 
