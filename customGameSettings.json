@@ -6,11 +6,9 @@
                 "Ultimate Generation": 200
             },
             "Soldier: 76": {
-                "Ammunition Clip Size Scalar": 200,
-                "Health": 125
+                "Ammunition Clip Size Scalar": 200
             },
             "Mercy": {
-                "Health": 125,
                 "Secondary Fire": false
             }
         }

@@ -43,16 +43,18 @@ globalvar define team1Score = 0;
 globalvar define team2Score = 0;
 playervar define dmgPercent; //dmg multiplier (in percent) for primary fire (compensating for near-perfect aim)
 globalvar define idlePunishTimer = 0;
+playervar define targetingIdleTimer;
 playervar define isSpedUp = false;
 playervar define dmgTakenFromAgent = 0;
-globalvar define inputResults = []; //formatted as [[inputs1], value1, [inputs2], value2...]
+globalvar define inputResults = []; //formatted as [[inputs1], [[values1], [values2]...], [inputs2], value2...]
+playervar define inputResultsExtended = [];
 rule: 'assignDmgPercent'
 Event.OngoingPlayer
 {
     if (IsDummyBot(EventPlayer())) {
         dmgPercent = 40;
     } else if (HeroOf(EventPlayer()) == Hero.Soldier76) {
-        dmgPercent = 65;
+        dmgPercent = 72.72;
     } else {
         dmgPercent = 100;
     }
@@ -115,11 +117,11 @@ rule: 'init weights'
         }
 
         for (define i = 0; i < 31; i++) {
-            w2 = Append(w2, RandomReal(-5, 5));
+            w2 = Append(w2, RandomReal(-1, 1));
         }
 
-        for (define i = 0; i < 31; i++) {
-            wideW = Append(w2, RandomReal(-5, 5));
+        for (define i = 0; i < 55; i++) {
+            wideW = Append(w2, RandomReal(-1, 1));
         }
     }
 }
@@ -132,8 +134,8 @@ rule: 'init weights'
 //this effectively makes the weights a 3d array, which would kill performance
 globalvar define e = 2.718281828;
 globalvar define learningRate = 0.01;
-playervar define wideLearningRate = 0.005;
-playervar define outputLearningRate = 0.005;
+playervar define wideLearningRate = 0.0001;
+playervar define outputLearningRate = 0.001;
 globalvar define totalLoss = 0;
 globalvar define lossCount = 0;
 globalvar define w1;
@@ -504,9 +506,15 @@ Number[] getInputs(Vector position) 'get inputs' {
         inputsExtension = Append(inputsExtension, losChecks);
     }
 
+    define targetArray = [-0.1, -0.1, -0.1];
+    if (targetingIdleTimer < 5 && SlotOf(lastTargetedPlayer) != null && TeamOf(lastTargetedPlayer) == OppositeTeamOf(players[i])) {
+        targetArray[SlotOf(lastTargetedPlayer)] = 0.1;
+    }
+    inputsExtension = Append(inputsExtension, targetArray);    
+
     for (i = 0; i < CountOf(players); i++) {
-        define targetArray = [-0.1, -0.1, -0.1];
-        if (SlotOf(players[i].lastTargetedPlayer) != null && TeamOf(players[i].lastTargetedPlayer) == OppositeTeamOf(players[i])) {
+        targetArray = [-0.1, -0.1, -0.1];
+        if (targetingIdleTimer < 5 && SlotOf(players[i].lastTargetedPlayer) != null && TeamOf(players[i].lastTargetedPlayer) == OppositeTeamOf(players[i])) {
             targetArray[SlotOf(players[i].lastTargetedPlayer)] = 0.1;
         }
         inputsExtension = Append(inputsExtension, targetArray);    
@@ -526,11 +534,11 @@ Number[] getInputs(Vector position) 'get inputs' {
     inputsExtension = Append(inputsExtension, IsUsingAbility2(PlayersInSlot(1, Team.Team2)) ? 0.1 : -0.1);
 
     //is agent being healed by support
-    inputsExtension = Append(inputsExtension, PlayersInSlot(2, Team.Team1).lastTargetedPlayer == EventPlayer() || 
-        (IsUsingUltimate(PlayersInSlot(2, Team.Team1)) && IsInLineOfSight(EventPlayer(), PlayersInSlot(2, Team.Team1))) ? 0.1 : -0.1);
+    inputsExtension = Append(inputsExtension, (PlayersInSlot(2, Team.Team1).lastTargetedPlayer == EventPlayer() || 
+        (IsUsingUltimate(PlayersInSlot(2, Team.Team1)) && IsInLineOfSight(EventPlayer(), PlayersInSlot(2, Team.Team1)))) ? 0.1 : -0.1);
 
-    inputsExtension = Append(inputsExtension, PlayersInSlot(2, Team.Team1).lastTargetedPlayer == PlayersInSlot(1, Team.Team1) || 
-        (IsUsingUltimate(PlayersInSlot(2, Team.Team1)) && IsInLineOfSight(PlayersInSlot(1, Team.Team1), PlayersInSlot(2, Team.Team1))) ? 0.1 : -0.1);
+    inputsExtension = Append(inputsExtension, (PlayersInSlot(2, Team.Team1).lastTargetedPlayer == PlayersInSlot(1, Team.Team1) || 
+        (IsUsingUltimate(PlayersInSlot(2, Team.Team1)) && IsInLineOfSight(PlayersInSlot(1, Team.Team1), PlayersInSlot(2, Team.Team1)))) ? 0.1 : -0.1);
 
     return [inputs, extraInputs, targets, bonusActions, inputsExtension];
 }
@@ -571,16 +579,15 @@ Team.Team1
 {
     Wait(2);
     StartHoldingButton(EventPlayer(), Button.Ability1);
-    //this loop continues for [int below] seconds before stopping
-    while (aiTime < 330) {
+    //agent will run until below statement becomes false
+    while (CountOf(inputResultsExtended) < 120) {
+        define choicePositions = [];
+        define choiceTargets = [];
+        define choiceInputs = [];
+        define choiceValues = [];
+        define choiceActions = [];
+        define choiceInputExtensions = [];
         if (IsAlive(EventPlayer())) {
-            define choicePositions = [];
-            define choiceTargets = [];
-            define choiceInputs = [];
-            define choiceValues = [];
-            define choiceActions = [];
-            define choiceInputExtensions = [];
-
             //get the values of every possible state/action
             for (define i = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
                 for (define j = -choiceMaxSteps; j <= choiceMaxSteps; j++) {
@@ -786,20 +793,37 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
                 backPropagate(pastInputs[i], pastInputs[i], pastInputRewards[i][CountOf(pastInputRewards[i])-1]);
                 indexesToRemove = Append(indexesToRemove, i);
                 Wait(0.016);
-                inputResults = Append(inputResults, 
-                    [Append(pastInputs[i], pastInputsExtension[i]), 
-                    pastInputRewards[i],
-                    pastDamageDealtRewards[i],
-                    pastDamageLostByEnemyHealingRewards[i],
-                    pastDamageTakenRewards[i],
-                    pastEliminatedRewards[i],
-                    pastEliminationRewards[i],
-                    pastHealingDealtRewards[i],
-                    pastHealingReceivedRewards[i],
-                    pastIdleRewards[i],
-                    pastObjectiveLostRewards[i],
-                    pastObjectiveTakenRewards[i],
-                    pastInputTimes[i]]);
+                if (CountOf(inputResults) < 90) {
+                    inputResults = Append(inputResults, 
+                        [Append(pastInputs[i], pastInputsExtension[i]), 
+                        [pastInputRewards[i],
+                        pastDamageDealtRewards[i],
+                        pastDamageLostByEnemyHealingRewards[i],
+                        pastDamageTakenRewards[i],
+                        pastEliminatedRewards[i],
+                        pastEliminationRewards[i],
+                        pastHealingDealtRewards[i],
+                        pastHealingReceivedRewards[i],
+                        pastIdleRewards[i],
+                        pastObjectiveLostRewards[i],
+                        pastObjectiveTakenRewards[i],
+                        pastInputTimes[i]]]);
+                } else {
+                    inputResultsExtended = Append(inputResultsExtended, 
+                        [Append(pastInputs[i], pastInputsExtension[i]), 
+                        [pastInputRewards[i],
+                        pastDamageDealtRewards[i],
+                        pastDamageLostByEnemyHealingRewards[i],
+                        pastDamageTakenRewards[i],
+                        pastEliminatedRewards[i],
+                        pastEliminationRewards[i],
+                        pastHealingDealtRewards[i],
+                        pastHealingReceivedRewards[i],
+                        pastIdleRewards[i],
+                        pastObjectiveLostRewards[i],
+                        pastObjectiveTakenRewards[i],
+                        pastInputTimes[i]]]);
+                }
             }
         }
 
@@ -884,6 +908,9 @@ void finish() 'Log results at end of match'
     w2Import = w2;
     wideWeightImport = wideW;
 
+    //clear up space, to mitigate chances of crashing on var export
+    w1 = null;
+
     LogToInspector("Finished!");
 
     Wait(10);
@@ -896,6 +923,25 @@ if (aiTime >= 90)
     EnableInspectorRecording();
     LogToInspector("Validation time!");
     DisableInspectorRecording();
+}
+
+rule: 'targeting timer'
+Event.OngoingPlayer
+{
+    targetingIdleTimer += 1;
+    Wait(1);
+}
+
+rule: 'reset targeting timer on dmg'
+Event.OnDamageDealt
+{
+    targetingIdleTimer = 0;
+}
+
+rule: 'reset targeting timer on heal'
+Event.OnHealingDealt
+{
+    targetingIdleTimer = 0;
 }
 
 //decision-making takes >800ms
@@ -1094,8 +1140,8 @@ Player.Slot0
 Team.Team1
 {
     idlePunishTimer = 0;
-    deltaReward -= EventDamage() * 0.01;
-    deltaDamageTakenReward -= EventDamage() * 0.01;
+    deltaReward -= EventDamage() * 0.011;
+    deltaDamageTakenReward -= EventDamage() * 0.011;
 }
 
 rule: 'Punish death'
@@ -1146,6 +1192,7 @@ Event.OnDamageDealt
 
 rule: 'extension: update last target (mercy)'
 Event.OnHealingDealt
+Player.Mercy
 {
     lastTargetedPlayer = Healee();
 }
