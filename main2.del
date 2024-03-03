@@ -579,14 +579,14 @@ Team.Team1
 {
     Wait(2);
     StartHoldingButton(EventPlayer(), Button.Ability1);
+    define choicePositions = [];
+    define choiceTargets = [];
+    define choiceInputs = [];
+    define choiceValues = [];
+    define choiceActions = [];
+    define choiceInputExtensions = [];
     //agent will run until below statement becomes false
-    while (CountOf(inputResultsExtended) + (CountOf(pastInputs)*2) < 240) {
-        define choicePositions = [];
-        define choiceTargets = [];
-        define choiceInputs = [];
-        define choiceValues = [];
-        define choiceActions = [];
-        define choiceInputExtensions = [];
+    while (CountOf(inputResultsExtended) + (CountOf(pastInputs)*2) < 220) {
         if (IsAlive(EventPlayer())) {
             //get the values of every possible state/action
             for (define i = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
@@ -749,6 +749,12 @@ Team.Team1
             Wait(0.25);
             pfRecalibrate();
         }
+        choicePositions = [];
+        choiceTargets = [];
+        choiceInputs = [];
+        choiceValues = [];
+        choiceActions = [];
+        choiceInputExtensions = [];
         Wait(0.016);
     } 
     //while loop end (meaning first round has finished, so the simulation should end)
