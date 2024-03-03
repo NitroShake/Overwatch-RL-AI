@@ -870,6 +870,8 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
 
 void finish() 'Log results at end of match'
 {
+    pfLoadedMap_neighbors = null;
+    pfLoadedMap_nodes = null;
     EnableInspectorRecording();
     EnableInspectorRecording();
     Wait(0.016);
