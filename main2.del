@@ -580,7 +580,7 @@ Team.Team1
     Wait(2);
     StartHoldingButton(EventPlayer(), Button.Ability1);
     //agent will run until below statement becomes false
-    while (CountOf(inputResultsExtended) < 120) {
+    while (CountOf(inputResultsExtended) + (CountOf(pastInputs)*2) < 240) {
         define choicePositions = [];
         define choiceTargets = [];
         define choiceInputs = [];
@@ -793,7 +793,7 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
                 backPropagate(pastInputs[i], pastInputs[i], pastInputRewards[i][CountOf(pastInputRewards[i])-1]);
                 indexesToRemove = Append(indexesToRemove, i);
                 Wait(0.016);
-                if (CountOf(inputResults) < 90) {
+                if (CountOf(inputResults) < 180) {
                     inputResults = Append(inputResults, 
                         [Append(pastInputs[i], pastInputsExtension[i]), 
                         [pastInputRewards[i],
