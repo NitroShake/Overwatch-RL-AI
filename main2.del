@@ -308,7 +308,7 @@ rule: 'Match Init'
     //track server load
     CreateHudText(AllPlayers(), '{0} {1} {2}'.Format([ServerLoad(), ServerLoadAverage(), ServerLoadPeak()]),
     null, null, Location.Left, 1, Color.White, Color.Aqua, Color.Aqua, HudTextRev.VisibleToAndString, Spectators.VisibleAlways);
-    CreateHudText(AllPlayers(), '{0} | {1} | {2}'.Format([aiTime, idlePunishTimer, CountOf(pastInputTimes)]),
+    CreateHudText(AllPlayers(), '{0} | {1} | {2}'.Format([aiTime, idlePunishTimer, CountOf(PlayersInSlot(0, Team.Team1).inputResultsExtended)]),
     null, null, Location.Left, 1, Color.White, Color.Aqua, Color.Aqua, HudTextRev.VisibleToAndString, Spectators.VisibleAlways);
     //these two are crucial for performance - server crashes at regular speed, and
     //client crashes if inspector recording is enabled (too many step-throughs)
@@ -586,7 +586,7 @@ Team.Team1
     define choiceActions = [];
     define choiceInputExtensions = [];
     //agent will run until below statement becomes false
-    while (CountOf(inputResultsExtended) + (CountOf(pastInputs)*2) < 220) {
+    while (CountOf(players[0].inputResultsExtended) + (CountOf(pastInputs)*2) < 110) {
         if (IsAlive(EventPlayer())) {
             //get the values of every possible state/action
             for (define i = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
@@ -814,7 +814,7 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
                         pastObjectiveLostRewards[i],
                         pastObjectiveTakenRewards[i],
                         pastInputTimes[i]]]);
-                } else {
+                } else if (CountOf(inputResultsExtended < 110)){
                     inputResultsExtended = Append(inputResultsExtended, 
                         [Append(pastInputs[i], pastInputsExtension[i]), 
                         [pastInputRewards[i],
@@ -829,6 +829,24 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
                         pastObjectiveLostRewards[i],
                         pastObjectiveTakenRewards[i],
                         pastInputTimes[i]]]);
+                } else {
+                    players[0].inputResultsExtended = Append(players[0].inputResultsExtended, 
+                        [Append(pastInputs[i], pastInputsExtension[i]), 
+                        [pastInputRewards[i],
+                        pastDamageDealtRewards[i],
+                        pastDamageLostByEnemyHealingRewards[i],
+                        pastDamageTakenRewards[i],
+                        pastEliminatedRewards[i],
+                        pastEliminationRewards[i],
+                        pastHealingDealtRewards[i],
+                        pastHealingReceivedRewards[i],
+                        pastIdleRewards[i],
+                        pastObjectiveLostRewards[i],
+                        pastObjectiveTakenRewards[i],
+                        pastInputTimes[i]]]);
+                }
+                if (inputLifespan == 0) {
+                    Wait(0.016);
                 }
             }
         }
@@ -855,6 +873,9 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
                     indexesToRemove[j] = indexesToRemove[j] - 1;
                 }
             }
+            if (inputLifespan == 0) {
+                Wait(0.016);
+            }
         }
 
         Wait(0.016);
@@ -876,35 +897,43 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
 
 void finish() 'Log results at end of match'
 {
-    pfLoadedMap_neighbors = null;
-    pfLoadedMap_nodes = null;
-    EnableInspectorRecording();
     EnableInspectorRecording();
     Wait(0.016);
     define aiSoldier = PlayersOnHero(Hero.Soldier76, Team.Team1)[0];
+    Wait(0.016);
     define enemySoldier = PlayersOnHero(Hero.Soldier76, Team.Team2)[0];
-
+    Wait(0.016);
     EnableInspectorRecording();
+    Wait(0.016);
     LogToInspector('Match time (seconds): {0}'.Format([aiTime]));
+    Wait(0.016);
     LogToInspector('NN average loss : {0}'.Format([totalLoss / lossCount]));
+    Wait(0.016);
     LogToInspector('NN loss count : {0}'.Format([lossCount]));
+    Wait(0.016);
     LogToInspector('stats formatted as: damage/heals/kills/deaths/ultimatedmg/rocketdmg');
+    Wait(0.016);
     LogToInspector('AI stats: {0}, {1}, {2}'.Format([aiSoldier.dmgDealtStat, aiSoldier.healingStat, aiSoldier.eliminationStat]));
+    Wait(0.016);
     LogToInspector('AI cont: {0}, {1}, {2}'.Format([aiSoldier.deathStat, aiSoldier.ultimateDmgStat, aiSoldier.rocketDmgStat]));
+    Wait(0.016);
     LogToInspector('Enemy stats: {0}, {1}, {2}'.Format([enemySoldier.dmgDealtStat, enemySoldier.healingStat, enemySoldier.eliminationStat]));
+    Wait(0.016);
     LogToInspector('enemy cont: {0}, {1}, {2}'.Format([enemySoldier.deathStat, enemySoldier.ultimateDmgStat, enemySoldier.rocketDmgStat]));
+        Wait(0.016);
     //check the stats recorded for enemy soldier against the official stat-tracking.
     //dummy bot stats are not recorded via these methods, neccessitating the custom tracking
     LogToInspector('Enemy assurance stats: {0} {1} {2}'.Format([PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.AllDamageDealt),
                                                                     PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.HealingDealt),
                                                                     PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.Eliminations)]));
+    Wait(0.016);
     LogToInspector('assurance cont: {0} {1}'.Format([PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.Deaths),
                                                     PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.WeaponAccuracy)]));
     Wait(0.016);
     EnableInspectorRecording();
-    LogToInspector("Team 1 Win: {0}".Format([TeamScore(Team.Team1)]));
+    Wait(0.016);
     LogToInspector("Team 1 Score: {0}".Format([team1Score]));
-    LogToInspector("Team 2 Win: {0}".Format([TeamScore(Team.Team2)]));
+    Wait(0.016);
     LogToInspector("Team 2 Score: {0}".Format([team2Score]));
     Wait(5);
     DestroyAllDummyBots();
@@ -912,15 +941,17 @@ void finish() 'Log results at end of match'
     //Prepare vars for export/import
     //PLEASE ADJUST FOR ACTUAL NODE/WEIGHT COUNT AS NECESSARY
     w1Import1 = ArraySlice(w1, 0, 30);
+    Wait(0.016);
     w1Import2 = ArraySlice(w1, 30, 25);
+    Wait(0.016);
     w2Import = w2;
+    Wait(0.016);
     wideWeightImport = wideW;
-
+    Wait(0.016);
     //clear up space, to mitigate chances of crashing on var export
     w1 = null;
-
+    Wait(0.016);
     LogToInspector("Finished!");
-
     Wait(10);
     SetMatchTime(999);
 }
