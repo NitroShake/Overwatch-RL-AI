@@ -47,7 +47,9 @@ playervar define targetingIdleTimer;
 playervar define isSpedUp = false;
 playervar define dmgTakenFromAgent = 0;
 globalvar define inputResults = []; //formatted as [[inputs1], [[values1], [values2]...], [inputs2], value2...]
-playervar define inputResultsExtended = [];
+globalvar define inputResultsIterations = 0;
+playervar define inputResultsMaxIterations = 2;
+playervar define inputResultsIterationLength = 150;
 rule: 'assignDmgPercent'
 Event.OngoingPlayer
 {
@@ -74,7 +76,6 @@ globalvar define w1Import1;
 globalvar define w1Import2;
 globalvar define w2Import;
 globalvar define wideWeightImport;
-
 rule: '>>> Import Weights Part 1 (paste them here!) <<<'
 {
     
@@ -201,7 +202,7 @@ define optimisedFeedForward(define inputs, define extraInputs, define wideInputs
         }
     }
 
-    Wait(0.016);
+    Wait(0.016); 
     //LogToInspector("i {0}".Format([baseWeightI]));
 
     define outputs = [];
@@ -308,9 +309,9 @@ rule: 'Match Init'
     //track server load
     CreateHudText(AllPlayers(), '{0} {1} {2}'.Format([ServerLoad(), ServerLoadAverage(), ServerLoadPeak()]),
     null, null, Location.Left, 1, Color.White, Color.Aqua, Color.Aqua, HudTextRev.VisibleToAndString, Spectators.VisibleAlways);
-    CreateHudText(AllPlayers(), '{0} | {1}'.Format([aiTime, idlePunishTimer]),
+    CreateHudText(AllPlayers(), '{0} | {1} | {2}'.Format([aiTime, idlePunishTimer, CountOf(pastInputs)]),
     null, null, Location.Left, 1, Color.White, Color.Aqua, Color.Aqua, HudTextRev.VisibleToAndString, Spectators.VisibleAlways);
-    CreateHudText(AllPlayers(), '{0} | {1} | {2}'.Format([CountOf(inputResults), CountOf(PlayersInSlot(0, Team.Team1).inputResultsExtended), CountOf(players[0].inputResultsExtended)]),
+    CreateHudText(AllPlayers(), '{0} | {1}'.Format([CountOf(inputResults), inputResultsIterations]),
     null, null, Location.Left, 1, Color.White, Color.Aqua, Color.Aqua, HudTextRev.VisibleToAndString, Spectators.VisibleAlways);
     //these two are crucial for performance - server crashes at regular speed, and
     //client crashes if inspector recording is enabled (too many step-throughs)
@@ -588,7 +589,7 @@ Team.Team1
     define choiceActions = [];
     define choiceInputExtensions = [];
     //agent will run until below statement becomes false
-    while (CountOf(players[0].inputResultsExtended) + (CountOf(pastInputs)*2) < 110) {
+    while (inputResultsIterations < inputResultsMaxIterations || (CountOf(inputResults) + (CountOf(pastInputs)*2) < inputResultsIterationLength)) {
         if (IsAlive(EventPlayer())) {
             //get the values of every possible state/action
             for (define i = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
@@ -801,7 +802,7 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
                 backPropagate(pastInputs[i], pastInputs[i], pastInputRewards[i][CountOf(pastInputRewards[i])-1]);
                 indexesToRemove = Append(indexesToRemove, i);
                 Wait(0.016);
-                if (CountOf(inputResults) < 180) {
+                if (CountOf(inputResults) < inputResultsIterationLength) {
                     inputResults = Append(inputResults, 
                         [Append(pastInputs[i], pastInputsExtension[i]), 
                         [pastInputRewards[i],
@@ -816,36 +817,13 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
                         pastObjectiveLostRewards[i],
                         pastObjectiveTakenRewards[i],
                         pastInputTimes[i]]]);
-                } else if (CountOf(inputResultsExtended < 110)){
-                    inputResultsExtended = Append(inputResultsExtended, 
-                        [Append(pastInputs[i], pastInputsExtension[i]), 
-                        [pastInputRewards[i],
-                        pastDamageDealtRewards[i],
-                        pastDamageLostByEnemyHealingRewards[i],
-                        pastDamageTakenRewards[i],
-                        pastEliminatedRewards[i],
-                        pastEliminationRewards[i],
-                        pastHealingDealtRewards[i],
-                        pastHealingReceivedRewards[i],
-                        pastIdleRewards[i],
-                        pastObjectiveLostRewards[i],
-                        pastObjectiveTakenRewards[i],
-                        pastInputTimes[i]]]);
-                } else {
-                    players[0].inputResultsExtended = Append(players[0].inputResultsExtended, 
-                        [Append(pastInputs[i], pastInputsExtension[i]), 
-                        [pastInputRewards[i],
-                        pastDamageDealtRewards[i],
-                        pastDamageLostByEnemyHealingRewards[i],
-                        pastDamageTakenRewards[i],
-                        pastEliminatedRewards[i],
-                        pastEliminationRewards[i],
-                        pastHealingDealtRewards[i],
-                        pastHealingReceivedRewards[i],
-                        pastIdleRewards[i],
-                        pastObjectiveLostRewards[i],
-                        pastObjectiveTakenRewards[i],
-                        pastInputTimes[i]]]);
+                }
+                if (CountOf(inputResults) >= inputResultsIterationLength && inputResultsIterations < inputResultsMaxIterations) {
+                    EnableInspectorRecording();
+                    LogToInspector("Result set #{0} finished, move timeline to when this was printed to get it".Format([inputResultsIterations]));
+                    DisableInspectorRecording();
+                    inputResultsIterations++;
+                    inputResults = [];
                 }
                 if (inputLifespan == 0) {
                     Wait(0.016);
