@@ -409,7 +409,7 @@ Number[] getInputs(Vector position) 'get inputs' {
         inputs = Append(inputs, [Health(players[i]) / MaxHealth(players[i]) / 10,
                                 (IsAlive(players[i]) && IsInLineOfSight(position, players[i], BarrierLOS.NoBarriersBlock)) ? 0.1 : -0.1,
                                 IsAlive(players[i]) ? 0.1 : -0.1,
-                                DistanceBetween(position, players[i]) / 1000,
+                                IsAlive(players[i]) ? DistanceBetween(position, players[i]) / 1000 : DistanceBetween(position, SpawnPoints(TeamOf(players[i]))[1]) / 1000,
                                 (DistanceBetween(position, players[i].positionTracking[0]) - DistanceBetween(position, players[i])) / 300,
                                 IsUsingUltimate(players[i]) ? 0.1 : -0.1,
                                 AbsoluteValue(HorizontalAngleTowards(players[i], position)) / 1800]);
@@ -556,10 +556,10 @@ Number[] numsToAllPositiveNums(define array) {
     lowestNumber--;
     define power;
     if (idlePunishTimer >= 4) {
-        power = 6;
+        power = 7;
     }
     else {
-        power = 2;
+        power = 4;
     }
     for (define i = 0; i < CountOf(array); i++) {
         array[i] = RaiseToPower(array[i] - lowestNumber, power);
@@ -589,7 +589,7 @@ Team.Team1
     define choiceActions = [];
     define choiceInputExtensions = [];
     //agent will run until below statement becomes false
-    while (inputResultsIterations < inputResultsMaxIterations || (CountOf(inputResults) + (CountOf(pastInputs)*2) < inputResultsIterationLength)) {
+    while ((aiTime < 330) && (inputResultsIterations < inputResultsMaxIterations || (CountOf(inputResults) + (CountOf(pastInputs)*2) < inputResultsIterationLength))) {
         if (IsAlive(EventPlayer())) {
             //get the values of every possible state/action
             for (define i = -choiceMaxSteps; i <= choiceMaxSteps; i++) {
@@ -820,7 +820,7 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
                 }
                 if (CountOf(inputResults) >= inputResultsIterationLength && inputResultsIterations < inputResultsMaxIterations) {
                     EnableInspectorRecording();
-                    LogToInspector("Result set #{0} finished, move timeline to when this was printed to get it".Format([inputResultsIterations]));
+                    LogToInspector("Result set #{0} finished, move timeline to when this string was printed to retrieve".Format([inputResultsIterations]));
                     DisableInspectorRecording();
                     inputResultsIterations++;
                     inputResults = [];
@@ -878,61 +878,42 @@ void handleBackprop(define inputLifespan) 'Attribute reward and handle Backpropa
 void finish() 'Log results at end of match'
 {
     EnableInspectorRecording();
-    Wait(0.016);
     define aiSoldier = PlayersOnHero(Hero.Soldier76, Team.Team1)[0];
-    Wait(0.016);
     define enemySoldier = PlayersOnHero(Hero.Soldier76, Team.Team2)[0];
-    Wait(0.016);
     EnableInspectorRecording();
-    Wait(0.016);
+
     LogToInspector('Match time (seconds): {0}'.Format([aiTime]));
-    Wait(0.016);
     LogToInspector('NN average loss : {0}'.Format([totalLoss / lossCount]));
-    Wait(0.016);
     LogToInspector('NN loss count : {0}'.Format([lossCount]));
-    Wait(0.016);
     LogToInspector('stats formatted as: damage/heals/kills/deaths/ultimatedmg/rocketdmg');
-    Wait(0.016);
     LogToInspector('AI stats: {0}, {1}, {2}'.Format([aiSoldier.dmgDealtStat, aiSoldier.healingStat, aiSoldier.eliminationStat]));
-    Wait(0.016);
     LogToInspector('AI cont: {0}, {1}, {2}'.Format([aiSoldier.deathStat, aiSoldier.ultimateDmgStat, aiSoldier.rocketDmgStat]));
-    Wait(0.016);
     LogToInspector('Enemy stats: {0}, {1}, {2}'.Format([enemySoldier.dmgDealtStat, enemySoldier.healingStat, enemySoldier.eliminationStat]));
-    Wait(0.016);
     LogToInspector('enemy cont: {0}, {1}, {2}'.Format([enemySoldier.deathStat, enemySoldier.ultimateDmgStat, enemySoldier.rocketDmgStat]));
-        Wait(0.016);
     //check the stats recorded for enemy soldier against the official stat-tracking.
     //dummy bot stats are not recorded via these methods, neccessitating the custom tracking
     LogToInspector('Enemy assurance stats: {0} {1} {2}'.Format([PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.AllDamageDealt),
                                                                     PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.HealingDealt),
                                                                     PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.Eliminations)]));
-    Wait(0.016);
     LogToInspector('assurance cont: {0} {1}'.Format([PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.Deaths),
                                                     PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.WeaponAccuracy)]));
-    Wait(0.016);
-    EnableInspectorRecording();
-    Wait(0.016);
     LogToInspector("Team 1 Score: {0}".Format([team1Score]));
-    Wait(0.016);
     LogToInspector("Team 2 Score: {0}".Format([team2Score]));
-    Wait(5);
+    Wait(0.016);
     DestroyAllDummyBots();
     Wait(0.016);
     //Prepare vars for export/import
     //PLEASE ADJUST FOR ACTUAL NODE/WEIGHT COUNT AS NECESSARY
     w1Import1 = ArraySlice(w1, 0, 30);
-    Wait(0.016);
     w1Import2 = ArraySlice(w1, 30, 25);
-    Wait(0.016);
     w2Import = w2;
-    Wait(0.016);
     wideWeightImport = wideW;
     Wait(0.016);
     //clear up space, to mitigate chances of crashing on var export
     w1 = null;
-    Wait(0.016);
     LogToInspector("Finished!");
-    Wait(10);
+    DisableInspectorRecording();
+    Wait(5);
     SetMatchTime(999);
 }
 
@@ -1212,6 +1193,7 @@ Event.OnDamageDealt
 rule: 'extension: update last target (mercy)'
 Event.OnHealingDealt
 Player.Mercy
+if (Healee() != EventPlayer())
 {
     lastTargetedPlayer = Healee();
 }
