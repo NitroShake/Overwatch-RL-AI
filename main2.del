@@ -36,6 +36,8 @@ playervar define pastEliminatedRewards = [];
 playervar define pastIdleRewards = [];
 globalvar define aiTime = 0;
 playervar define aimTarget = null;
+playervar define targetPriorityMaxTime = 5;
+playervar define targetPriorityTimer = 0;
 playervar define extraAction = null;
 globalvar define runSlow = false;
 playervar define positionTracking = [];
@@ -546,9 +548,9 @@ Number[] getInputs(Vector position) 'get inputs' {
     return [inputs, extraInputs, targets, bonusActions, inputsExtension];
 }
 
-//adds numbers to array such that all values become non-negative.
+//adds numbers to array such that all values become non-negative, then raises them to a power
 //e.g. [-20, 40, -30, 60] becomes [10, 70, 0, 90]
-Number[] numsToAllPositiveNums(define array) {
+Number[] applyValueWeighting(define array, define choiceTargets) {
     define lowestNumber = 0;
     for (define i = 0; i < CountOf(array); i++) {
         lowestNumber = Min(lowestNumber, array[i]);
@@ -559,10 +561,16 @@ Number[] numsToAllPositiveNums(define array) {
         power = 7;
     }
     else {
-        power = 4;
+        power = 3;
     }
+
     for (define i = 0; i < CountOf(array); i++) {
-        array[i] = RaiseToPower(array[i] - lowestNumber, power);
+        if (targetPriorityTimer > 0 && aimTarget != null && choiceTargets[i] == aimTarget) {
+            array[i] = RaiseToPower(array[i] - lowestNumber, power + (targetPriorityTimer / targetPriorityMaxTime));
+        }
+        else {
+            array[i] = RaiseToPower(array[i] - lowestNumber, power);
+        }
     }
     return array;
 }
@@ -675,7 +683,7 @@ Team.Team1
             }
 
             //get the index of the state-action to be chosen.
-            define positiveValues = numsToAllPositiveNums(choiceValues);
+            define positiveValues = applyValueWeighting(choiceValues, choiceTargets);
             define sumValues = sumArray(positiveValues);
             define probability = 0;
             define rand = RandomReal(0, 1);
@@ -704,6 +712,9 @@ Team.Team1
             //set enemy and position targets
             if (!runSlow) {
                 pfDestination = choicePositions[actionIndex];
+                if (choiceTargets[actionIndex] != aimTarget && choiceTargets[actionIndex] != null) {
+                    targetPriorityTimer = targetPriorityMaxTime;
+                }
                 aimTarget = choiceTargets[actionIndex];
                 extraAction = choiceActions[actionIndex];
                 if (aimTarget != null) {
@@ -1088,6 +1099,7 @@ Event.OngoingPlayer
 if (IsDummyBot(EventPlayer()))
 {
     deltaTime += 0.016;
+    targetPriorityTimer -= 0.016;
     Wait(0.016);
     Loop();
 }
