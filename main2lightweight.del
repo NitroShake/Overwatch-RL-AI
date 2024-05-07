@@ -693,9 +693,11 @@ void finish() 'Log results at end of match'
     LogToInspector('AI stats: {0}, {1}, {2}'.Format([aiSoldier.dmgDealtStat, aiSoldier.healingStat, aiSoldier.eliminationStat]));
     LogToInspector('AI cont: {0}, {1}, {2}'.Format([aiSoldier.deathStat, aiSoldier.ultimateDmgStat, aiSoldier.rocketDmgStat]));
     LogToInspector('AI acc: {0}, {1}'.Format([aiSoldier.primaryShotHits / aiSoldier.primaryShotsFired, aiSoldier.secondaryShotHits / aiSoldier.secondaryShotsFired]));
+    LogToInspector('AI time to obj: {0}'.Format([aiSoldier.totalTimeMovingToObjective / aiSoldier.totalObjectiveJourneys]));
     LogToInspector('Enemy stats: {0}, {1}, {2}'.Format([enemySoldier.dmgDealtStat, enemySoldier.healingStat, enemySoldier.eliminationStat]));
     LogToInspector('enemy cont: {0}, {1}, {2}'.Format([enemySoldier.deathStat, enemySoldier.ultimateDmgStat, enemySoldier.rocketDmgStat]));
     LogToInspector('Enemy acc: {0}, {1}'.Format([enemySoldier.primaryShotHits / enemySoldier.primaryShotsFired, enemySoldier.secondaryShotHits / enemySoldier.secondaryShotsFired]));
+    LogToInspector('AI time to obj: {0}'.Format([enemySoldier.totalTimeMovingToObjective / enemySoldier.totalObjectiveJourneys]));
     //check the stats recorded for enemy soldier against the official stat-tracking.
     //dummy bot stats are not recorded via these methods, neccessitating the custom tracking
     LogToInspector('Enemy assurance stats: {0} {1} {2}'.Format([PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.AllDamageDealt),
@@ -1076,7 +1078,7 @@ playervar define hasReachedObjective = 0;
 playervar define totalTimeMovingToObjective = 0;
 playervar define totalObjectiveJourneys = 0;
 
-rule: ''
+rule: 'increment obj timer'
 Player.Soldier76
 Event.OngoingPlayer
 {
@@ -1087,7 +1089,7 @@ Event.OngoingPlayer
     Loop();
 }
 
-rule: ''
+rule: 'stop timer and add to total time when player reaches obj'
 Player.Soldier76
 Event.OngoingPlayer
 if (DistanceBetween(EventPlayer(), ObjectivePosition(ObjectiveIndex())) < 25)
@@ -1098,9 +1100,9 @@ if (DistanceBetween(EventPlayer(), ObjectivePosition(ObjectiveIndex())) < 25)
     totalObjectiveJourneys++;
 }
 
-rule: ''
+rule: 'start obj timer on respawn'
 Player.Soldier76
-Event.OnDeath
+if (IsAlive(EventPlayer()))
 {
     hasReachedObjective = false;
 }
