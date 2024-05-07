@@ -692,10 +692,10 @@ void finish() 'Log results at end of match'
     LogToInspector('stats formatted as: damage/heals/kills/deaths/ultimatedmg/rocketdmg');
     LogToInspector('AI stats: {0}, {1}, {2}'.Format([aiSoldier.dmgDealtStat, aiSoldier.healingStat, aiSoldier.eliminationStat]));
     LogToInspector('AI cont: {0}, {1}, {2}'.Format([aiSoldier.deathStat, aiSoldier.ultimateDmgStat, aiSoldier.rocketDmgStat]));
-    LogToInspector('AI acc: {0}, {1}'.Format([aiSoldier.primaryShotsHit / aiSoldier.primaryShotsFired, aiSoldier.secondaryShotsHit / aiSoldier.secondaryShotsFired]));
+    LogToInspector('AI acc: {0}, {1}'.Format([aiSoldier.primaryShotHits / aiSoldier.primaryShotsFired, aiSoldier.secondaryShotHits / aiSoldier.secondaryShotsFired]));
     LogToInspector('Enemy stats: {0}, {1}, {2}'.Format([enemySoldier.dmgDealtStat, enemySoldier.healingStat, enemySoldier.eliminationStat]));
     LogToInspector('enemy cont: {0}, {1}, {2}'.Format([enemySoldier.deathStat, enemySoldier.ultimateDmgStat, enemySoldier.rocketDmgStat]));
-    LogToInspector('Enemy acc: {0}, {1}'.Format([enemySoldier.primaryShotsHit / enemySoldier.primaryShotsFired, enemySoldier.secondaryShotsHit / enemySoldier.secondaryShotsFired]));
+    LogToInspector('Enemy acc: {0}, {1}'.Format([enemySoldier.primaryShotHits / enemySoldier.primaryShotsFired, enemySoldier.secondaryShotHits / enemySoldier.secondaryShotsFired]));
     //check the stats recorded for enemy soldier against the official stat-tracking.
     //dummy bot stats are not recorded via these methods, neccessitating the custom tracking
     LogToInspector('Enemy assurance stats: {0} {1} {2}'.Format([PlayerHeroStat(enemySoldier, Hero.Soldier76, PlayerHeroStat.AllDamageDealt),
@@ -1035,9 +1035,9 @@ Team.Team2
 
 playervar define previousAmmo = 999;
 playervar define primaryShotsFired = 0;
-playervar define primaryShotsHit = 0;
+playervar define primaryShotHits = 0;
 playervar define secondaryShotsFired = 0;
-playervar define secondaryShotsHit = 0;
+playervar define secondaryShotHits = 0;
 rule: 'track primary shots'
 Event.OngoingPlayer
 Player.Soldier76
@@ -1052,7 +1052,7 @@ Player.Soldier76
 Event.OnDamageDealt
 if (EventAbility() == Button.PrimaryFire)
 {
-    primaryShotsHit++;
+    primaryShotHits++;
 }
 
 rule: 'track secondary shots'
@@ -1068,7 +1068,7 @@ Player.Soldier76
 Event.OnDamageDealt
 if (EventAbility() == Button.SecondaryFire)
 {
-    secondaryShotsHit++;
+    secondaryShotHits++;
 }
 
 playervar define currentObjMovingTime = 0;
@@ -1094,6 +1094,7 @@ if (DistanceBetween(EventPlayer(), ObjectivePosition(ObjectiveIndex())) < 25)
 {
     hasReachedObjective = true;
     totalTimeMovingToObjective += currentObjMovingTime;
+    currentObjMovingTime = 0;
     totalObjectiveJourneys++;
 }
 
