@@ -478,10 +478,10 @@ Number[] applyValueWeighting(define array, define choiceTargets) {
     lowestNumber--;
     define power;
     if (idlePunishTimer >= 4) {
-        power = 7;
+        power = 8;
     }
     else {
-        power = 3;
+        power = 5;
     }
 
     for (define i = 0; i < CountOf(array); i++) {
@@ -1043,10 +1043,12 @@ playervar define secondaryShotHits = 0;
 rule: 'track primary shots'
 Event.OngoingPlayer
 Player.Soldier76
-if (previousAmmo > Ammo(EventPlayer(), 0))
+if (previousAmmo != Ammo(EventPlayer(), 0))
 {
+    if (previousAmmo > Ammo(EventPlayer(), 0)) {
+        primaryShotsFired += previousAmmo - Ammo(EventPlayer(), 0);
+    }
     previousAmmo = Ammo(EventPlayer(), 0);
-    primaryShotsFired++;
 }
 
 rule: 'track primary hits'
@@ -1054,13 +1056,13 @@ Player.Soldier76
 Event.OnDamageDealt
 if (EventAbility() == Button.PrimaryFire)
 {
-    primaryShotHits++;
+    primaryShotHits += RoundToInteger(EventDamage() % 15, Rounding.Nearest);
 }
 
 rule: 'track secondary shots'
 Event.OngoingPlayer
 Player.Soldier76
-if (AbilityCooldown(EventPlayer(), Button.SecondaryFire) > 0)
+if (IsFiringSecondary(EventPlayer()))
 {
     secondaryShotsFired++;
 }
@@ -1074,7 +1076,7 @@ if (EventAbility() == Button.SecondaryFire)
 }
 
 playervar define currentObjMovingTime = 0;
-playervar define hasReachedObjective = 0;
+playervar define hasReachedObjective = false;
 playervar define totalTimeMovingToObjective = 0;
 playervar define totalObjectiveJourneys = 0;
 
@@ -1092,7 +1094,7 @@ Event.OngoingPlayer
 rule: 'stop timer and add to total time when player reaches obj'
 Player.Soldier76
 Event.OngoingPlayer
-if (DistanceBetween(EventPlayer(), ObjectivePosition(ObjectiveIndex())) < 25)
+if (DistanceBetween(EventPlayer(), ObjectivePosition(ObjectiveIndex())) < 30 && hasReachedObjective == false)
 {
     hasReachedObjective = true;
     totalTimeMovingToObjective += currentObjMovingTime;
