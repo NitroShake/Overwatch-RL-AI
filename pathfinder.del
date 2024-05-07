@@ -250,7 +250,7 @@ rule: "【PF Core】Node reached"
 Event.OngoingPlayer
 if (pfIsPathfinding == true)
 if (pfWalkingToPosition == true)
-if (DistanceBetween(PositionOf(EventPlayer()) * Vector(1, [], 1), pfWalkingToPosition * Vector(1, [], 1)) <= 0.4)
+if (DistanceBetween(PositionOf(EventPlayer()) * Vector(1, 0, 1), pfWalkingToPosition * Vector(1, 0, 1)) <= 0.4)
 if (AbsoluteValue(YOf(PositionOf(EventPlayer())) - YOf(pfWalkingToPosition)) <= 1.5)
 if (CountOf(pfPath) > 0)
 if (pfCurrentNodeIndex != -1)
@@ -333,7 +333,7 @@ if (MagnitudeOf(VelocityOf(EventPlayer())) < 3)
 void pfLookAtDestination() "☆【PF Core Subroutine】☞ Look at destination"
 {
     # Calling this subroutine will make the player look to the point they are walking towards.
-    StartFacing(EventPlayer(), DirectionTowards(EyePosition(EventPlayer()) * (DistanceBetween(PositionOf(EventPlayer()), pfWalkingToPosition) < 3 ? Vector(1, [], 1) : Vector(1, 1, 1)), (pfWalkingToPosition + Vector(0, 1.5, 0)) * (DistanceBetween(PositionOf(EventPlayer()), pfWalkingToPosition) < 3 ? Vector(1, [], 1) : Vector(1, 1, 1))), 500, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
+    StartFacing(EventPlayer(), DirectionTowards(EyePosition(EventPlayer()) * (DistanceBetween(PositionOf(EventPlayer()), pfWalkingToPosition) < 3 ? Vector(1, 0, 1) : Vector(1, 1, 1)), (pfWalkingToPosition + Vector(0, 1.5, 0)) * (DistanceBetween(PositionOf(EventPlayer()), pfWalkingToPosition) < 3 ? Vector(1, 0, 1) : Vector(1, 1, 1))), 500, Relative.ToWorld, FacingRev.DirectionAndTurnRate);
 }
 
 //generated nodemaps begin here

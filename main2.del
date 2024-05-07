@@ -36,7 +36,7 @@ playervar define pastEliminatedRewards = [];
 playervar define pastIdleRewards = [];
 globalvar define aiTime = 0;
 playervar define aimTarget = null;
-playervar define targetPriorityMaxTime = 5;
+playervar define targetPriorityMaxTime = 0;
 playervar define targetPriorityTimer = 0;
 playervar define extraAction = null;
 globalvar define runSlow = false;
@@ -389,7 +389,7 @@ enum BonusAction {
 //self: Health, ammo, cooldown rocket/heals, is using ultimate, potential healing?
 //target: Health, distance, target hero thingy (5x bools)
 //extra input [targeting enemy #1, #2, #3, sprinting, healthtogain, isusingultimate]
-Number[] getInputs(Vector position) 'get inputs' {
+Number[][] getInputs(Vector position) 'get inputs' {
     define inputs = [];
     define extraInputs = [];
     define targets = [];
@@ -565,7 +565,7 @@ Number[] applyValueWeighting(define array, define choiceTargets) {
     }
 
     for (define i = 0; i < CountOf(array); i++) {
-        if (targetPriorityTimer > 0 && aimTarget != null && choiceTargets[i] == aimTarget) {
+        if (targetPriorityTimer > 0 && targetPriorityMaxTime > 0 && aimTarget != null && choiceTargets[i] == aimTarget) {
             array[i] = RaiseToPower(array[i] - lowestNumber, power + (targetPriorityTimer / targetPriorityMaxTime));
         }
         else {
