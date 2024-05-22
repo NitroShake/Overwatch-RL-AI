@@ -1,7 +1,3 @@
-//This is the main file version 2 - to replicate experiment #2, you'll want to compile using this file (it imports every neccessary file).
-//Alternatively, you can just get the compiled code from releases to make things easier
-//This is the 2nd version - notable differences are extended inputs/outputs (log only, nn complexity remains the same), and a wide+deep nn
-
 import 'pathfinder.del';
 import 'customGameSettings.json';
 
