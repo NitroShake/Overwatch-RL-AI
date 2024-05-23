@@ -9,7 +9,9 @@
                 "Ammunition Clip Size Scalar": 200
             },
             "Mercy": {
-                "Secondary Fire": false
+                "Secondary Fire": false,
+                "Resurrect": false,
+                "Damage Received": 75
             }
         }
     },
